@@ -26,6 +26,8 @@ public class SicXeAssm {
     //Writing to Intermediate files
     private static FileWriter FILEWRITER;
     private static PrintWriter PRINTWRITER;
+    //String to for supporting the looping based off OPCODE
+    private static String OPCODE;
     
     public static void main(String[] args) {
         //Init OPTAB AND SYMTAB
@@ -175,8 +177,12 @@ public class SicXeAssm {
             
             //Checks to make sure the line is not whitespace
             if(firstLine.isEmpty() != true){
-                System.out.println("First Line: "+firstLine);
+                
                 String[] line = firstLine.split("\\s+");
+                
+               //If START is the OPCODE for the second string
+                if(OPTAB.get(line[1]).getOP() == "START"){
+                    
                 writeToFile(line[0]); //This Will be Name of Program
                 writeToFile(line[1]); //This will be OPCODE Start
                 writeToFile(line[2]); //This will be LOCCTR INIT
@@ -184,16 +190,121 @@ public class SicXeAssm {
                 //INIT Starting Address and Location Counter
                 LOCCTR = Integer.parseInt(line[2]);
                 STARTADDRESS = LOCCTR;
-                
+                OPCODE = line[1].trim();
                 //Write to file
-                writeToFile(LOCCTR.toString());
+                writeToFile(Integer.toHexString(LOCCTR));
                 writeToFile("");
-                
+                }
+                else {
+                    writeToFile("E:START NOT FOUND IN PROGRAM.");
+                    System.out.println("Could not find START of programs.");
+                }
                 
             }
             
-            System.out.println(scan.nextLine());
-            System.out.println(scan.nextLine());
+            //Begins the loop for reading the rest of the program
+            //First makes sure the line is not whitespace
+            //If the line is whitespace then it moves to the next
+            firstLine = scan.nextLine();
+            
+            while(!OPCODE.equals("END")){
+               
+                if(scan.hasNextLine()){
+                    firstLine = scan.nextLine();
+                }
+                //Loop until non-empty line
+                while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
+                    firstLine = scan.nextLine();
+                }
+                //Split based on whitespace
+                
+                String[] line = firstLine.trim().split("\\s+");
+                
+                //Length of three means LABEL OPCODE OPERAND
+                if(line.length == 3){
+                    OPCODE = line[1];
+                    
+                    writeToFile(line[0]);
+                    writeToFile(line[1]);
+                    
+                    
+                    if(SYMTAB.get(line[0]) == null){
+                        SYMTAB.put(line[0],new SYM(line[0],LOCCTR));
+                    }
+                    else {
+                        SYMTAB.get(line[0]).setFlags("DUPLICATE DECLARATION");
+                    }
+                    
+                    if(OPTAB.get(line[1]).getOP().equals("WORD")){
+                        writeToFile(line[2]);
+                        writeToFile(Integer.toHexString(LOCCTR));
+                        LOCCTR += 3;
+                         writeToFile(Integer.toHexString(LOCCTR));
+                        
+                    }
+                    else if(OPTAB.get(line[1]).getOP().equals("RESW")){
+                        writeToFile(Integer.toHexString(LOCCTR));
+                        LOCCTR += 3 * Integer.parseInt(line[2]);
+                        writeToFile(Integer.toHexString(LOCCTR));
+                    }
+                    else if(OPTAB.get(line[1]).getOP().equals("RESB")){
+                        writeToFile(Integer.toHexString(LOCCTR));
+                        LOCCTR += Integer.parseInt(line[2]);
+                        writeToFile(Integer.toHexString(LOCCTR));
+                    }
+                    else if(OPTAB.get(line[1]).getOP().equals("BYTE")){
+                        writeToFile(line[2]);
+                        writeToFile(Integer.toHexString(LOCCTR));
+                        writeToFile(Integer.toHexString(LOCCTR));
+                   
+                    }
+                    else {
+                        writeToFile(line[2]);
+                        writeToFile(Integer.toHexString(LOCCTR));
+                       LOCCTR += OPTAB.get(line[1]).getFormat1();
+                        writeToFile(Integer.toHexString(LOCCTR));
+                    }
+
+                    writeToFile("");
+                    
+                }
+                //Length of two means OPCODE OPERAND
+                else if(line.length == 2){
+                    OPCODE = line[0];
+                    writeToFile(line[0]);
+                    writeToFile(line[1]);
+                    writeToFile(Integer.toHexString(LOCCTR));
+                   
+                    if(OPTAB.get(line[0]) != null){
+                        LOCCTR += OPTAB.get(line[0]).getFormat1();
+                    }
+                    if(line[0].charAt(0) == '+'){
+                        //Checks to see if FORMAT 4 is supported
+                        if(OPTAB.get(line[0].substring(1)).getFormat2() == null){
+                            System.out.println("Error FORMAT 4 NOT SUPPORTED");
+                            writeToFile("E:FORMAT 4 NOT SUPPORTED WITH OPCODE");
+                            writeToFile("");
+                        }
+                        else {
+                            LOCCTR += 4;
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            writeToFile("");
+                        }
+                    }
+                    else{
+                        writeToFile(Integer.toHexString(LOCCTR));
+                        writeToFile("");
+                    }
+                    
+                }
+                
+            }
+            
+                
+                
+                
+            
+            
         }
         catch(FileNotFoundException e){
             e.printStackTrace();
@@ -234,7 +345,7 @@ class OPT {
     }
     
     //Setter Functions
-    public void setMnemonic(String name){
+    public void setOP(String name){
         this.Mnemonic = name;
     }
     public void setFormat1(Integer format){
@@ -248,7 +359,7 @@ class OPT {
     }
     
     //Getter Functions
-    public String getMnemonic(){
+    public String getOP(){
         return this.Mnemonic;
     }
     public Integer getFormat1(){
