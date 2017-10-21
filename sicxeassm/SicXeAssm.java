@@ -7,6 +7,9 @@ package sicxeassm;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Hashtable;
 import java.util.Scanner;
 
@@ -17,13 +20,24 @@ public class SicXeAssm {
     //OPTABE and SYMTAB
     private static Hashtable<String, OPT> OPTAB;
     private static Hashtable<String, SYM> SYMTAB;
+    //Location Counter and Starting Address    
     private static Integer LOCCTR;
+    private static Integer STARTADDRESS;
+    //Writing to Intermediate files
+    private static FileWriter FILEWRITER;
+    private static PrintWriter PRINTWRITER;
     
     public static void main(String[] args) {
         //Init OPTAB AND SYMTAB
         OPTAB = createOPTAB();
         SYMTAB = createSYMTAB();
- 
+        //Init FileWriting
+        FILEWRITER = createFileWriter();
+        PRINTWRITER = createPrintWriter(FILEWRITER);
+        
+        
+        
+        
         //PassOne
         passOne(args[0]);
         
@@ -128,7 +142,19 @@ public class SicXeAssm {
     public static Hashtable<String, SYM> createSYMTAB(){
         return new Hashtable();
     }
-    
+    public static FileWriter createFileWriter(){
+        try {
+        return new FileWriter("intermediate.txt");
+        }
+        catch(IOException e){
+            e.printStackTrace();
+            System.out.println("Error writing to intermediate.txt!");
+            return null;
+        }
+    }
+    public static PrintWriter createPrintWriter(FileWriter filewriter){
+        return new PrintWriter(filewriter);
+    }
     //Add to SYMTAB
     public static void addToSYMTAB(String label, SYM sym){
         if(SYMTAB.contains(label)){
@@ -143,13 +169,46 @@ public class SicXeAssm {
         try {
             File file = new File(filename);
             Scanner scan = new Scanner(file);
-            System.out.println(scan.nextLine());
+            
+            //Begins the parsing of the first line
+            String firstLine = scan.nextLine();
+            
+            //Checks to make sure the line is not whitespace
+            if(firstLine.isEmpty() != true){
+                System.out.println("First Line: "+firstLine);
+                String[] line = firstLine.split("\\s+");
+                writeToFile(line[0]); //This Will be Name of Program
+                writeToFile(line[1]); //This will be OPCODE Start
+                writeToFile(line[2]); //This will be LOCCTR INIT
+                
+                //INIT Starting Address and Location Counter
+                LOCCTR = Integer.parseInt(line[2]);
+                STARTADDRESS = LOCCTR;
+                
+                //Write to file
+                writeToFile(LOCCTR.toString());
+                writeToFile("");
+                
+                
+            }
+            
             System.out.println(scan.nextLine());
             System.out.println(scan.nextLine());
         }
         catch(FileNotFoundException e){
             e.printStackTrace();
+            System.out.println("The File Was Not Found!");
         }
+        
+        closeFile();
+    }
+    
+    //File Writing Functions
+    public static void writeToFile(String line){
+        PRINTWRITER.print(line+"\n");
+    }
+    public static void closeFile(){
+        PRINTWRITER.close();
     }
 }
 
