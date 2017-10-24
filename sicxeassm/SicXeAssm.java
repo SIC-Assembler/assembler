@@ -209,9 +209,6 @@ public class SicXeAssm {
             
             while(!OPCODE.equals("END")){
                
-                if(scan.hasNextLine()){
-                    firstLine = scan.nextLine();
-                }
                 //Loop until non-empty line
                 while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
                     firstLine = scan.nextLine();
@@ -239,7 +236,7 @@ public class SicXeAssm {
                         writeToFile(line[2]);
                         writeToFile(Integer.toHexString(LOCCTR));
                         LOCCTR += 3;
-                         writeToFile(Integer.toHexString(LOCCTR));
+                        writeToFile(Integer.toHexString(LOCCTR));
                         
                     }
                     else if(OPTAB.get(line[1]).getOP().equals("RESW")){
@@ -270,16 +267,27 @@ public class SicXeAssm {
                 }
                 //Length of two means OPCODE OPERAND
                 else if(line.length == 2){
+                    
+                    
                     OPCODE = line[0];
-                    writeToFile(line[0]);
-                    writeToFile(line[1]);
-                    writeToFile(Integer.toHexString(LOCCTR));
-                   
+                    
+                    //If OPCDE is END this will only print END,Progam name and Last address(HEX) used into Intermediate file
+                    if(OPCODE.equals("END")){
+                        writeToFile(line[0]);
+                        writeToFile(line[1]);
+                    } else {
+                        writeToFile(line[0]);
+                        writeToFile(line[1]);
+                        writeToFile(Integer.toHexString(LOCCTR));
+                    }
+                    
                     if(OPTAB.get(line[0]) != null){
                         LOCCTR += OPTAB.get(line[0]).getFormat1();
                     }
+                    
                     if(line[0].charAt(0) == '+'){
                         //Checks to see if FORMAT 4 is supported
+                        //.subtring checks for everything after the '+'
                         if(OPTAB.get(line[0].substring(1)).getFormat2() == null){
                             System.out.println("Error FORMAT 4 NOT SUPPORTED");
                             writeToFile("E:FORMAT 4 NOT SUPPORTED WITH OPCODE");
