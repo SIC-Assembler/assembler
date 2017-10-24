@@ -205,10 +205,11 @@ public class SicXeAssm {
             //Begins the loop for reading the rest of the program
             //First makes sure the line is not whitespace
             //If the line is whitespace then it moves to the next
-            firstLine = scan.nextLine();
-            
             while(!OPCODE.equals("END")){
                
+
+                firstLine = scan.nextLine();
+                
                 //Loop until non-empty line
                 while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
                     firstLine = scan.nextLine();
