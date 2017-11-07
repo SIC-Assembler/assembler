@@ -22,7 +22,7 @@ public class SicXeAssm {
     private static Hashtable<String, OPT> OPTAB;
     private static Hashtable<String, SYM> SYMTAB;
     //Location Counter and Starting Address    
-    private static Integer LOCCTR;
+    public static Integer LOCCTR;
     private static Integer STARTADDRESS;
     //Writing to Intermediate files
     private static FileWriter FILEWRITER;
@@ -244,7 +244,7 @@ public class SicXeAssm {
                 if(index != -1){
                         COMMENT = "";
                     for(int i = index; i < line.length; i++){
-                        COMMENT.concat(line[i]+" ");
+                        COMMENT = COMMENT.concat(line[i]+" ");
                     }
                     for(int i =0; i < index; i++){
                         correctLine.add(line[i]);
@@ -261,12 +261,17 @@ public class SicXeAssm {
                 
                 
                 //Check if line is a comment
-                if(COMMENT != null){
+                if(COMMENT != null && correctLine.size() == 1){
                     
                     writeToFile(COMMENT);
                 }
                 else {
-                    if(OPTAB.contains(correctLine.get(0).toString())){
+                    String wordOne = correctLine.get(0);
+                    String wordTwo = correctLine.get(0).substring(1);
+                    
+                    
+                    if(OPTAB.containsKey(wordOne) || OPTAB.containsKey(wordTwo)){
+                        
                         OPCODE = correctLine.get(0);
                         //OPCODE
                         if(correctLine.size() == 1){
@@ -349,7 +354,7 @@ public class SicXeAssm {
                             writeToFile(OPCODE);
                             writeToFile(OPERAND);
                             writeToFile(Integer.toHexString(LOCCTR));
-                            ERRORS = incLOCCTR(OPCODE, OPERAND);
+                            ERRORS = incLOCCTR(OPCODE, OPERAND, LOCCTR);
                             writeToFile(Integer.toHexString(LOCCTR));
                             writeToFile(COMMENT);
                             if(ERRORS != null){
@@ -389,8 +394,9 @@ public class SicXeAssm {
     //LOCCTR
     public static String incLOCCTR(String OPCODE, String OPERAND){
         if(OPCODE.charAt(0) == '+'){
-            if(OPTAB.get(OPCODE.substring(1)).getFormat2() != null){
-                LOCCTR += OPTAB.get(OPCODE.substring(1)).getFormat2();
+            String substring = OPCODE.substring(1);
+            if(OPTAB.get(substring).getFormat2() != null){
+                LOCCTR += OPTAB.get(substring).getFormat2();
                 return null;
             }
             else {
