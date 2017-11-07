@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Hashtable;
 import java.util.Scanner;
+import java.util.ArrayList;
 
 
 
@@ -66,6 +67,7 @@ public class SicXeAssm {
         hashTable.put("WORD",new OPT("WORD",0,0));
         hashTable.put("RESB",new OPT("RESB",0,0));
         hashTable.put("RESW",new OPT("RESW",0,0));
+        hashTable.put("BASE", new OPT("BASE",0,0));
         
         //Mnemonics with format size and HEX converted to decimal
         //0x## tells the compiler to conver the number to its decimal form
@@ -169,147 +171,208 @@ public class SicXeAssm {
     
     public static void passOne(String filename){
         try {
+            //INIT File
             File file = new File(filename);
             Scanner scan = new Scanner(file);
+            
+            //INIT Variables
+            String SYMBOL = null;
+            String OPCODE = null;
+            String OPERAND = null;
+            String COMMENT = null;
+            String ERRORS = null;
+            Integer LOCCTR = null;
+            
             
             //Begins the parsing of the first line
             String firstLine = scan.nextLine();
             
-            //Checks to make sure the line is not whitespace
-            if(firstLine.isEmpty() != true){
-                
-                String[] line = firstLine.split("\\s+");
-                
-               //If START is the OPCODE for the second string
-                if(OPTAB.get(line[1]).getOP() == "START"){
-                    
-                writeToFile(line[0]); //This Will be Name of Program
-                writeToFile(line[1]); //This will be OPCODE Start
-                writeToFile(line[2]); //This will be LOCCTR INIT
-                
-                //INIT Starting Address and Location Counter
-                LOCCTR = Integer.parseInt(line[2]);
-                STARTADDRESS = LOCCTR;
-                OPCODE = line[1].trim();
-                //Write to file
-                writeToFile(Integer.toHexString(LOCCTR));
-                writeToFile("");
+            //Loops until it finds the first line and it is not empty
+            while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
+                    firstLine = scan.nextLine();
                 }
-                else {
-                    writeToFile("E:START NOT FOUND IN PROGRAM.");
-                    System.out.println("Could not find START of programs.");
+            
+            //Spilts the based on characters trailed by whitespace
+            String[] line = firstLine.trim().split("\\s+");
+            
+            //Checks to see this is a comment line
+            if(line[0].charAt(0) == '.'){
+                writeToFile(firstLine.trim());
+                firstLine = scan.nextLine();
+            }
+            //Checks if OPCODE == START
+            else {
+                if(line[1].equals("START")){
+
+                    OPCODE = line[1].trim();
+                    LOCCTR = Integer.parseInt(line[2]);
+                    System.out.println(OPCODE);
+                    writeToFile(line[0]);
+                    writeToFile(OPCODE);
+                    writeToFile(LOCCTR.toString());
+                    writeToFile(LOCCTR.toString());
                 }
-                
             }
             
-            //Begins the loop for reading the rest of the program
-            //First makes sure the line is not whitespace
-            //If the line is whitespace then it moves to the next
             while(!OPCODE.equals("END")){
-               
-
-                firstLine = scan.nextLine();
                 
-                //Loop until non-empty line
+                SYMBOL = null;
+                OPERAND = null;
+                COMMENT = null;
+                
+                
+                if(scan.hasNextLine()){
+                    firstLine = scan.nextLine();
+                }
+                //Loop until line is not empty
                 while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
                     firstLine = scan.nextLine();
                 }
-                //Split based on whitespace
                 
-                String[] line = firstLine.trim().split("\\s+");
+                ArrayList<String> correctLine = new ArrayList<String>();
                 
-                //Length of three means LABEL OPCODE OPERAND
-                if(line.length == 3){
-                    OPCODE = line[1];
-                    
-                    writeToFile(line[0]);
-                    writeToFile(line[1]);
-                    
-                    
-                    if(SYMTAB.get(line[0]) == null){
-                        SYMTAB.put(line[0],new SYM(line[0],LOCCTR));
+                //Split based off whitespace
+                line = firstLine.trim().split("\\s+");
+                
+                int index = -1;
+                for(int i = 0; i < line.length; i++){
+                    if(line[i].charAt(0) == '.'){
+                        index = i;
+                        System.out.println(index);
                     }
-                    else {
-                        SYMTAB.get(line[0]).setFlags("DUPLICATE DECLARATION");
+                }
+                if(index != -1){
+                        COMMENT = "";
+                    for(int i = index; i < line.length; i++){
+                        COMMENT.concat(line[i]+" ");
                     }
+                    for(int i =0; i < index; i++){
+                        correctLine.add(line[i]);
+                    }
+                    correctLine.add(COMMENT);
+                }
+                else {
+                    for(int i =0; i < line.length; i++){
+                        correctLine.add(line[i]);
+                    }
+                }
+                
+                
+                
+                
+                //Check if line is a comment
+                if(COMMENT != null){
                     
-                    if(OPTAB.get(line[1]).getOP().equals("WORD")){
-                        writeToFile(line[2]);
-                        writeToFile(Integer.toHexString(LOCCTR));
-                        LOCCTR += 3;
-                        writeToFile(Integer.toHexString(LOCCTR));
+                    writeToFile(COMMENT);
+                }
+                else {
+                    if(OPTAB.contains(correctLine.get(0).toString())){
+                        OPCODE = correctLine.get(0);
+                        //OPCODE
+                        if(correctLine.size() == 1){
+                            writeToFile(OPCODE);
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            ERRORS = incLOCCTR(OPCODE,OPERAND);
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            if(ERRORS != null){
+                                writeToFile(ERRORS);
+                            }
+                        }
+                        else if(correctLine.size() == 2){
+                            //OPCODE COMMENT
+                            if(COMMENT != null){
+                                writeToFile(OPCODE);
+                                writeToFile(Integer.toHexString(LOCCTR));
+                                ERRORS = incLOCCTR(OPCODE,OPERAND);
+                                writeToFile(Integer.toHexString(LOCCTR));
+                                writeToFile(COMMENT);
+                                if(ERRORS != null){
+                                writeToFile(ERRORS);
+                                }
+                                
+                            }
+                            //OPCODE OPERAND
+                            else {
+                                OPERAND = correctLine.get(1);
+                                writeToFile(OPCODE);
+                                writeToFile(OPERAND);
+                                writeToFile(Integer.toHexString(LOCCTR));
+                                ERRORS = incLOCCTR(OPCODE,OPERAND);
+                                writeToFile(Integer.toHexString(LOCCTR));
+                                if(ERRORS != null){
+                                writeToFile(ERRORS);
+                                }
+                            }
+                        }
+                        //OPCODE OPERAND COMMENT
+                        else if(correctLine.size() == 3){
+                                OPERAND = correctLine.get(1);
+                                
+                                writeToFile(OPCODE);
+                                writeToFile(OPERAND);
+                                writeToFile(Integer.toHexString(LOCCTR));
+                                ERRORS = incLOCCTR(OPCODE,OPERAND);
+                                writeToFile(Integer.toHexString(LOCCTR));
+                                writeToFile(COMMENT);
+                                if(ERRORS != null){
+                                writeToFile(ERRORS);
+                                }
+                        }
                         
                     }
-                    else if(OPTAB.get(line[1]).getOP().equals("RESW")){
-                        writeToFile(Integer.toHexString(LOCCTR));
-                        LOCCTR += 3 * Integer.parseInt(line[2]);
-                        writeToFile(Integer.toHexString(LOCCTR));
-                    }
-                    else if(OPTAB.get(line[1]).getOP().equals("RESB")){
-                        writeToFile(Integer.toHexString(LOCCTR));
-                        LOCCTR += Integer.parseInt(line[2]);
-                        writeToFile(Integer.toHexString(LOCCTR));
-                    }
-                    else if(OPTAB.get(line[1]).getOP().equals("BYTE")){
-                        writeToFile(line[2]);
-                        writeToFile(Integer.toHexString(LOCCTR));
-                        writeToFile(Integer.toHexString(LOCCTR));
-                   
-                    }
                     else {
-                        writeToFile(line[2]);
-                        writeToFile(Integer.toHexString(LOCCTR));
-                       LOCCTR += OPTAB.get(line[1]).getFormat1();
-                        writeToFile(Integer.toHexString(LOCCTR));
-                    }
-
-                    writeToFile("");
-                    
-                }
-                //Length of two means OPCODE OPERAND
-                else if(line.length == 2){
-                    
-                    
-                    OPCODE = line[0];
-                    
-                    //If OPCDE is END this will only print END,Progam name and Last address(HEX) used into Intermediate file
-                    if(OPCODE.equals("END")){
-                        writeToFile(line[0]);
-                        writeToFile(line[1]);
-                    } else {
-                        writeToFile(line[0]);
-                        writeToFile(line[1]);
-                        writeToFile(Integer.toHexString(LOCCTR));
-                    }
-                    
-                    if(OPTAB.get(line[0]) != null){
-                        LOCCTR += OPTAB.get(line[0]).getFormat1();
-                    }
-                    
-                    if(line[0].charAt(0) == '+'){
-                        //Checks to see if FORMAT 4 is supported
-                        //.subtring checks for everything after the '+'
-                        if(OPTAB.get(line[0].substring(1)).getFormat2() == null){
-                            System.out.println("Error FORMAT 4 NOT SUPPORTED");
-                            writeToFile("E:FORMAT 4 NOT SUPPORTED WITH OPCODE");
-                            writeToFile("");
+                        SYMBOL = correctLine.get(0);
+                        OPCODE = correctLine.get(1);
+                        OPERAND = correctLine.get(2);
+                        
+                        if(SYMTAB.contains(SYMBOL)){
+                            ERRORS = "THIS IS A DUPLICATE SYMBOL";
                         }
                         else {
-                            LOCCTR += 4;
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            writeToFile("");
+                            SYMTAB.put(SYMBOL, new SYM(SYMBOL,LOCCTR));
                         }
-                    }
-                    else{
-                        writeToFile(Integer.toHexString(LOCCTR));
-                        writeToFile("");
-                    }
+                        //SYMBOL DIRECTIVE
+                        if(correctLine.size() == 3){
+                            writeToFile(SYMBOL);
+                            writeToFile(OPCODE);
+                            writeToFile(OPERAND);
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            ERRORS = incLOCCTR(OPCODE, OPERAND);
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            if(ERRORS != null){
+                                writeToFile(ERRORS);
+                               } 
+                            
+                        }
+                        else {
+                            writeToFile(SYMBOL);
+                            writeToFile(OPCODE);
+                            writeToFile(OPERAND);
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            ERRORS = incLOCCTR(OPCODE, OPERAND);
+                            writeToFile(Integer.toHexString(LOCCTR));
+                            writeToFile(COMMENT);
+                            if(ERRORS != null){
+                                writeToFile(ERRORS);
+                               } 
+                            
+                        }
                     
+                    
+                    }
+                 
                 }
-                
+       
             }
             
-                
+            
+            
+            
+            
+           
+            
+             
+               
                 
                 
             
@@ -321,6 +384,47 @@ public class SicXeAssm {
         }
         
         closeFile();
+    }
+    
+    //LOCCTR
+    public static String incLOCCTR(String OPCODE, String OPERAND){
+        if(OPCODE.charAt(0) == '+'){
+            if(OPTAB.get(OPCODE.substring(1)).getFormat2() != null){
+                LOCCTR += OPTAB.get(OPCODE.substring(1)).getFormat2();
+                return null;
+            }
+            else {
+                return "FORMAT 4 NOT SUPPORTED";
+            }
+        }
+        else {
+            if(OPCODE.equals("WORD")){
+                LOCCTR += 3;
+                return null;
+            }
+            else if(OPCODE.equals("RESW")){
+                LOCCTR = 3 * Integer.parseInt(OPERAND);
+                return null;
+            }
+            else if(OPCODE.equals("RESB")){
+                LOCCTR += Integer.parseInt(OPERAND);
+                return null;
+            }
+            else if(OPCODE.equals("BYTE")){
+                return null;
+            }
+            else {
+                if(OPTAB.get(OPCODE).getFormat1() != -1){
+                    LOCCTR += OPTAB.get(OPCODE).getFormat1();
+                return null;
+                }
+                else {
+                    return "DIRECTIVE NOT SUPPORTED";
+                }
+                
+            }
+            
+        }
     }
     
     //File Writing Functions
