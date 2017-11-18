@@ -146,6 +146,7 @@ public class SicXeAssm {
     public static Hashtable<String, SYM> createSYMTAB(){
         return new Hashtable();
     }
+    
     public static FileWriter createFileWriter(){
         try {
         return new FileWriter("intermediate.txt");
