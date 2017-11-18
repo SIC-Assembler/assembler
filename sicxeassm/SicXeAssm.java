@@ -24,8 +24,12 @@ public class SicXeAssm {
     //Location Counter and Starting Address    
     public static Integer LOCCTR;
     private static Integer STARTADDRESS;
-    //Writing to Intermediate files
+    
+    //Writing to Intermediate files and OUTPUT FILES
     private static FileWriter FILEWRITER;
+    private static FileWriter FILEWRITEROBJ;
+    private static FileWriter FILEWRITERLST;
+    
     private static PrintWriter PRINTWRITER;
     //String to for supporting the looping based off OPCODE
     private static String OPCODE;
@@ -36,16 +40,17 @@ public class SicXeAssm {
         OPTAB = createOPTAB();
         SYMTAB = createSYMTAB();
         //Init FileWriting
-        FILEWRITER = createFileWriter();
+        FILEWRITER = createFileWriter("intermediate.txt");
+        
+        FILEWRITEROBJ = createFileWriter(args[0]+".obj");
+        FILEWRITERLST = createFileWriter(args[0]+".lst");
+        
         PRINTWRITER = createPrintWriter(FILEWRITER);
-        
-        
-        
         
         //PassOne
         passOne(args[0]);
         
-        
+        passTwo("intermediate.txt");
         
         
         
@@ -148,9 +153,9 @@ public class SicXeAssm {
         return new Hashtable();
     }
     
-    public static FileWriter createFileWriter(){
+    public static FileWriter createFileWriter(String fileName){
         try {
-        return new FileWriter("intermediate.txt");
+        return new FileWriter(fileName);
         }
         catch(IOException e){
             e.printStackTrace();
@@ -398,6 +403,28 @@ public class SicXeAssm {
         }
         
         closeFile();
+    }
+    
+    public static void passTwo(String filename){
+        PRINTWRITER = createPrintWriter(FILEWRITEROBJ); 
+        try{
+            //INIT File
+            File file = new File(filename);
+            Scanner scan = new Scanner(file);
+            String line = scan.nextLine().trim();
+            
+            while(line == null){
+                line = scan.nextLine();
+            }
+            
+            
+            writeToFile(line);
+         }
+         catch(FileNotFoundException e){
+            e.printStackTrace();
+            System.out.println("The File Was Not Found!");
+        }
+        closeFile(); 
     }
     
     //LOCCTR
