@@ -29,6 +29,7 @@ public class SicXeAssm {
     private static PrintWriter PRINTWRITER;
     //String to for supporting the looping based off OPCODE
     private static String OPCODE;
+    private static String ERROR;
     
     public static void main(String[] args) {
         //Init OPTAB AND SYMTAB
@@ -181,7 +182,6 @@ public class SicXeAssm {
             String OPCODE = null;
             String OPERAND = null;
             String COMMENT = null;
-            String ERRORS = null;
             Integer LOCCTR = null;
             
             
@@ -212,6 +212,7 @@ public class SicXeAssm {
                     writeToFile(OPCODE);
                     writeToFile(LOCCTR.toString());
                     writeToFile(LOCCTR.toString());
+                    writeToFile("");
                 }
             }
             
@@ -220,6 +221,7 @@ public class SicXeAssm {
                 SYMBOL = null;
                 OPERAND = null;
                 COMMENT = null;
+                setErrors(null);
                 
                 
                 if(scan.hasNextLine()){
@@ -265,6 +267,7 @@ public class SicXeAssm {
                 if(COMMENT != null && correctLine.size() == 1){
                     
                     writeToFile(COMMENT);
+                    writeToFile("");
                 }
                 else {
                     String wordOne = correctLine.get(0);
@@ -278,23 +281,25 @@ public class SicXeAssm {
                         if(correctLine.size() == 1){
                             writeToFile(OPCODE);
                             writeToFile(Integer.toHexString(LOCCTR));
-                            ERRORS = incLOCCTR(OPCODE,OPERAND);
+                            LOCCTR  = incLOCCTR(OPCODE,OPERAND,LOCCTR);
                             writeToFile(Integer.toHexString(LOCCTR));
-                            if(ERRORS != null){
-                                writeToFile(ERRORS);
+                            if(ERROR != null){
+                                writeToFile(ERROR);
                             }
+                            writeToFile("");
                         }
                         else if(correctLine.size() == 2){
                             //OPCODE COMMENT
                             if(COMMENT != null){
                                 writeToFile(OPCODE);
                                 writeToFile(Integer.toHexString(LOCCTR));
-                                ERRORS = incLOCCTR(OPCODE,OPERAND);
+                                LOCCTR  = incLOCCTR(OPCODE,OPERAND,LOCCTR);
                                 writeToFile(Integer.toHexString(LOCCTR));
                                 writeToFile(COMMENT);
-                                if(ERRORS != null){
-                                writeToFile(ERRORS);
+                                if(ERROR != null){
+                                writeToFile(ERROR);
                                 }
+                                writeToFile("");
                                 
                             }
                             //OPCODE OPERAND
@@ -303,11 +308,12 @@ public class SicXeAssm {
                                 writeToFile(OPCODE);
                                 writeToFile(OPERAND);
                                 writeToFile(Integer.toHexString(LOCCTR));
-                                ERRORS = incLOCCTR(OPCODE,OPERAND);
+                                LOCCTR  = incLOCCTR(OPCODE,OPERAND, LOCCTR);
                                 writeToFile(Integer.toHexString(LOCCTR));
-                                if(ERRORS != null){
-                                writeToFile(ERRORS);
+                                if(ERROR != null){
+                                writeToFile(ERROR);
                                 }
+                                writeToFile("");
                             }
                         }
                         //OPCODE OPERAND COMMENT
@@ -317,12 +323,13 @@ public class SicXeAssm {
                                 writeToFile(OPCODE);
                                 writeToFile(OPERAND);
                                 writeToFile(Integer.toHexString(LOCCTR));
-                                ERRORS = incLOCCTR(OPCODE,OPERAND);
+                                LOCCTR  = incLOCCTR(OPCODE,OPERAND, LOCCTR);
                                 writeToFile(Integer.toHexString(LOCCTR));
                                 writeToFile(COMMENT);
-                                if(ERRORS != null){
-                                writeToFile(ERRORS);
+                                if(ERROR != null){
+                                writeToFile(ERROR);
                                 }
+                                writeToFile("");
                         }
                         
                     }
@@ -332,7 +339,7 @@ public class SicXeAssm {
                         OPERAND = correctLine.get(2);
                         
                         if(SYMTAB.contains(SYMBOL)){
-                            ERRORS = "THIS IS A DUPLICATE SYMBOL";
+                            ERROR = "THIS IS A DUPLICATE SYMBOL";
                         }
                         else {
                             SYMTAB.put(SYMBOL, new SYM(SYMBOL,LOCCTR));
@@ -343,11 +350,12 @@ public class SicXeAssm {
                             writeToFile(OPCODE);
                             writeToFile(OPERAND);
                             writeToFile(Integer.toHexString(LOCCTR));
-                            ERRORS = incLOCCTR(OPCODE, OPERAND);
+                            LOCCTR  = incLOCCTR(OPCODE, OPERAND, LOCCTR);
                             writeToFile(Integer.toHexString(LOCCTR));
-                            if(ERRORS != null){
-                                writeToFile(ERRORS);
+                            if(ERROR != null){
+                                writeToFile(ERROR);
                                } 
+                            writeToFile("");
                             
                         }
                         else {
@@ -355,13 +363,13 @@ public class SicXeAssm {
                             writeToFile(OPCODE);
                             writeToFile(OPERAND);
                             writeToFile(Integer.toHexString(LOCCTR));
-                            ERRORS = incLOCCTR(OPCODE, OPERAND, LOCCTR);
+                            LOCCTR = incLOCCTR(OPCODE, OPERAND, LOCCTR);
                             writeToFile(Integer.toHexString(LOCCTR));
                             writeToFile(COMMENT);
-                            if(ERRORS != null){
-                                writeToFile(ERRORS);
+                            if(ERROR != null){
+                                writeToFile(ERROR);
                                } 
-                            
+                            writeToFile("");
                         }
                     
                     
@@ -393,40 +401,60 @@ public class SicXeAssm {
     }
     
     //LOCCTR
-    public static String incLOCCTR(String OPCODE, String OPERAND){
+    public static Integer incLOCCTR(String OPCODE, String OPERAND, Integer LOCCTR){
         if(OPCODE.charAt(0) == '+'){
             String substring = OPCODE.substring(1);
             if(OPTAB.get(substring).getFormat2() != null){
-                LOCCTR += OPTAB.get(substring).getFormat2();
-                return null;
+                return LOCCTR += OPTAB.get(substring).getFormat2();
+                
             }
             else {
-                return "FORMAT 4 NOT SUPPORTED";
+                return LOCCTR;
             }
         }
         else {
             if(OPCODE.equals("WORD")){
-                LOCCTR += 3;
-                return null;
+                return LOCCTR += 3;
             }
             else if(OPCODE.equals("RESW")){
-                LOCCTR = 3 * Integer.parseInt(OPERAND);
-                return null;
+                return LOCCTR += 3 * Integer.parseInt(OPERAND);
+                
             }
             else if(OPCODE.equals("RESB")){
-                LOCCTR += Integer.parseInt(OPERAND);
-                return null;
+                return LOCCTR += Integer.parseInt(OPERAND);
+                
             }
             else if(OPCODE.equals("BYTE")){
-                return null;
+                char[] charArray = OPERAND.toCharArray();
+                Integer amountToAdd = 0;
+                
+                if(charArray[0] == 'X'){
+                    int i = 2;
+                    while(charArray[i] != '\''){
+                        amountToAdd++;
+                        i++;
+                    }
+                    amountToAdd = amountToAdd/2;
+                }
+                else if(charArray[0] == 'C'){
+                    int i = 2;
+                    while(charArray[i] != '\''){
+                        amountToAdd++;
+                        i++;
+                    }
+                }
+                else {
+                    setErrors("UNRECOGNIZED CHARACTERS");
+                }
+                return LOCCTR += amountToAdd;
             }
             else {
                 if(OPTAB.get(OPCODE).getFormat1() != -1){
-                    LOCCTR += OPTAB.get(OPCODE).getFormat1();
-                return null;
+                   return LOCCTR += OPTAB.get(OPCODE).getFormat1();
                 }
                 else {
-                    return "DIRECTIVE NOT SUPPORTED";
+                    setErrors("FORMAT NOT SUPPORTED");
+                    return LOCCTR;
                 }
                 
             }
@@ -434,12 +462,16 @@ public class SicXeAssm {
         }
     }
     
+    
     //File Writing Functions
     public static void writeToFile(String line){
         PRINTWRITER.print(line+"\n");
     }
     public static void closeFile(){
         PRINTWRITER.close();
+    }
+    public static void setErrors(String error){
+        ERROR = error;
     }
 }
 
