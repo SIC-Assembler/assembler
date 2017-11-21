@@ -430,7 +430,7 @@ public class SicXeAssm {
             }
             
             
-           
+          PRINTWRITER.printf('H'+"%-6.6s"+"%06X"+"%06X",line,STARTADDRESS,PROGRAMLENGTH);
          }
          catch(FileNotFoundException e){
             e.printStackTrace();
