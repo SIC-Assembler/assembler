@@ -23,7 +23,8 @@ public class SicXeAssm {
     private static Hashtable<String, SYM> SYMTAB;
     //Location Counter and Starting Address    
     public static Integer LOCCTR;
-    private static Integer STARTADDRESS;
+    public static Integer STARTADDRESS;
+    public static Integer PROGRAMLENGTH;
     
     //Writing to Intermediate files and OUTPUT FILES
     private static FileWriter FILEWRITER;
@@ -75,8 +76,9 @@ public class SicXeAssm {
         hashTable.put("RESW",new OPT("RESW",0,0));
         hashTable.put("BASE", new OPT("BASE",0,0));
         
+        
         //Mnemonics with format size and HEX converted to decimal
-        //0x## tells the compiler to conver the number to its decimal form
+        //0x## tells the compiler to convert the number to its decimal form
         //First page of commands in APPENDIX A
         hashTable.put("ADD", new OPT("ADD",3,4,0x18));
         hashTable.put("ADDF", new OPT("ADDF",3,4,0x58));
@@ -150,7 +152,17 @@ public class SicXeAssm {
         return hashTable;
     }
     public static Hashtable<String, SYM> createSYMTAB(){
-        return new Hashtable();
+        Hashtable hash = new Hashtable();
+        hash.put("A",new SYM("A",0));
+        hash.put("X",new SYM("X",1));
+        hash.put("L",new SYM("L",2));
+        hash.put("B",new SYM("B",3));
+        hash.put("S",new SYM("S",4));
+        hash.put("T",new SYM("T",5));
+        hash.put("F",new SYM("F",6));
+        hash.put("PC",new SYM("PC",8));
+        hash.put("SW",new SYM("SW",9));
+        return hash;
     }
     
     public static FileWriter createFileWriter(String fileName){
@@ -168,6 +180,7 @@ public class SicXeAssm {
     }
     //Add to SYMTAB
     public static void addToSYMTAB(String label, SYM sym){
+               
         if(SYMTAB.contains(label)){
             SYMTAB.get(label).setFlags("Duplicate Label");
         }
@@ -212,7 +225,7 @@ public class SicXeAssm {
 
                     OPCODE = line[1].trim();
                     LOCCTR = Integer.parseInt(line[2]);
-                    System.out.println(OPCODE);
+                    STARTADDRESS = Integer.parseInt(line[2]);
                     writeToFile(line[0]);
                     writeToFile(OPCODE);
                     writeToFile(LOCCTR.toString());
@@ -246,7 +259,6 @@ public class SicXeAssm {
                 for(int i = 0; i < line.length; i++){
                     if(line[i].charAt(0) == '.'){
                         index = i;
-                        System.out.println(index);
                     }
                 }
                 if(index != -1){
@@ -395,7 +407,7 @@ public class SicXeAssm {
                 
                 
             
-            
+        PROGRAMLENGTH = LOCCTR - STARTADDRESS;    
         }
         catch(FileNotFoundException e){
             e.printStackTrace();
@@ -418,7 +430,7 @@ public class SicXeAssm {
             }
             
             
-            writeToFile(line);
+           
          }
          catch(FileNotFoundException e){
             e.printStackTrace();
@@ -493,6 +505,9 @@ public class SicXeAssm {
     //File Writing Functions
     public static void writeToFile(String line){
         PRINTWRITER.print(line+"\n");
+    }
+    public static void writeFormat(String line){
+        
     }
     public static void closeFile(){
         PRINTWRITER.close();
