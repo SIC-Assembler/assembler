@@ -13,6 +13,7 @@ import java.io.PrintWriter;
 import java.util.Hashtable;
 import java.util.Scanner;
 import java.util.ArrayList;
+import java.util.Stack;
 
 
 
@@ -355,6 +356,7 @@ public class SicXeAssm {
                         OPCODE = correctLine.get(1);
                         OPERAND = correctLine.get(2);
                         
+                        
                         if(SYMTAB.contains(SYMBOL)){
                             ERROR = "THIS IS A DUPLICATE SYMBOL";
                         }
@@ -423,14 +425,123 @@ public class SicXeAssm {
             //INIT File
             File file = new File(filename);
             Scanner scan = new Scanner(file);
-            String line = scan.nextLine().trim();
+            String nameOfProgram = scan.nextLine().trim();
+            String OPCODE = scan.nextLine().trim();
+            ArrayList<String> INPUT = new ArrayList();
             
-            while(line == null){
-                line = scan.nextLine();
+            
+            while(nameOfProgram == null){
+                nameOfProgram = scan.nextLine();
+            }
+            
+            if(OPCODE.equals("START")){
+                PRINTWRITER.printf('H'+"%-6.6s"+"%06X"+"%06X"+"\n",nameOfProgram,STARTADDRESS,PROGRAMLENGTH);
+            }
+            
+            //Begins TextRecords and Assembling of Object code.
+            //This looping moves the scanner to the right position in the intermediate file
+            String key = scan.nextLine().trim();
+                while(key.length() != 0){
+                    key = scan.nextLine();
+                }
+                key = scan.nextLine();
+                
+                
+            while(!OPCODE.equals("END")){
+                
+                
+                String STARTADDRESS = "";
+                String ENDADDRESS = "";
+                String VALUE = "";
+                String SYMBOL = "";
+                String COMMENT = "";
+                        
+                
+                
+                while(key.length() != 0){
+                   INPUT.add(key);
+                   key = scan.nextLine();
+                }
+                
+                int length = INPUT.size();
+                
+                for(int i = 0; i < length; i++){
+                    //System.out.println(INPUT.get(i));
+                }
+                
+                if(isComment(INPUT.get(0)) && INPUT.size() == 1){
+                    COMMENT = INPUT.get(0);
+                }
+                else {
+                    OPCODE = INPUT.get(0);
+                }
+                
+                if(INPUT.size() > 1 ){
+                    String checkOP = "";
+                    if(INPUT.get(0).contains("+") && OPTAB.containsKey(INPUT.get(0).substring(1))){
+                        checkOP = INPUT.get(0).substring(1);
+                    }
+                    else {
+                        checkOP = INPUT.get(0);
+                    }
+                    
+                    if(OPTAB.containsKey(checkOP)){
+                        OPCODE = checkOP;
+                        String subSYM = "";
+                        if(INPUT.get(1).contains(",")){
+                            int endSub = INPUT.get(1).indexOf(",");
+                            subSYM = INPUT.get(1).substring(0,endSub);
+                        }
+                        else {
+                            subSYM = INPUT.get(1);
+                        }
+                        if(SYMTAB.containsKey(INPUT.get(1))|| SYMTAB.containsKey(subSYM)){
+                        SYMBOL = subSYM;
+                        VALUE = INPUT.get(1);
+                        STARTADDRESS = INPUT.get(2);
+                        ENDADDRESS = INPUT.get(3);
+                        }
+                        else if(!OPCODE.equals("END")){
+
+                        STARTADDRESS = INPUT.get(1);
+                        ENDADDRESS = INPUT.get(2);
+                        }
+                        else {
+                            STARTADDRESS = "0";
+                            ENDADDRESS = "0";
+                        }
+                    }
+                    else {
+                        SYMBOL = INPUT.get(0);
+                        OPCODE = INPUT.get(1);
+                        VALUE = INPUT.get(2);
+                        STARTADDRESS = INPUT.get(3);
+                        ENDADDRESS = INPUT.get(4);
+                        
+                    }
+                }
+                
+                if(!isComment(INPUT.get(0))){
+                INSTRUCTION INS = new INSTRUCTION(OPCODE,SYMBOL,ENDADDRESS,STARTADDRESS,VALUE);
+                    int address = -1;
+                if(SYMTAB.containsKey(SYMBOL)){
+                    address = SYMTAB.get(SYMBOL).getAddress();
+                }
+                INS.createObjCode(OPTAB.get(OPCODE).getOpcode(),address);
+                System.out.println(INS.toString());
+                }
+                
+                
+                INPUT.clear();
+                
+                if(scan.hasNextLine()){
+                key = scan.nextLine();
+                OPCODE = "";
+                }
             }
             
             
-          PRINTWRITER.printf('H'+"%-6.6s"+"%06X"+"%06X",line,STARTADDRESS,PROGRAMLENGTH);
+            
          }
          catch(FileNotFoundException e){
             e.printStackTrace();
@@ -492,7 +603,7 @@ public class SicXeAssm {
                    return LOCCTR += OPTAB.get(OPCODE).getFormat1();
                 }
                 else {
-                    setErrors("FORMAT NOT SUPPORTED");
+                    setErrors("FORMAT/COMMAND NOT SUPPORTED");
                     return LOCCTR;
                 }
                 
@@ -514,6 +625,32 @@ public class SicXeAssm {
     }
     public static void setErrors(String error){
         ERROR = error;
+    }
+    
+    
+    public static boolean isOpcode(String OP){
+        if(OPTAB.containsKey(OP)){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    public static boolean isComment(String COM){
+        if(COM.charAt(0) == '.'){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    public static boolean isSymbol(String SYM){
+        if(SYMTAB.containsKey(SYM)){
+            return true;
+        }
+        else {
+            return false;
+        }
     }
 }
 
@@ -604,5 +741,120 @@ class SYM {
     }
     public String getFlags(){
         return this.FLAGS;
+    }
+}
+
+class INSTRUCTION {
+    public static String OPCODE;
+    private static String SYMBOL;
+    private static Integer FORMAT;
+    public static String VALUES;
+   
+    
+    public INSTRUCTION(String OPCODE,String SYMBOL, String ENDADDRESS, String STARTADDRESS, String VALUES){
+        this.OPCODE = OPCODE;
+        this.SYMBOL = SYMBOL;
+        this.FORMAT = setFormat(ENDADDRESS,STARTADDRESS);
+        this.VALUES = VALUES;
+    }
+    
+    public static void createObjCode(Integer z, Integer SYMLOC){
+        String OBJCODE = "";
+        
+        if(OPCODE != null){
+            switch(FORMAT){
+                case 1:
+                    OBJCODE = String.format("%-2.02X",z);
+                    break;
+                case 2:
+                    OBJCODE = String.format("%04X",z);
+                    break;
+                case 3:
+                   
+                   int n = 1 << 5;
+                   int i = 1 << 4;
+                   int x = 1 << 3;
+                   int b = 1 << 2;
+                   int p = 1 << 1;
+                   int e = 1 << 0;
+                   
+                   int binaryCode = z << 4;
+                   String operand = VALUES;
+                   
+                   
+                   if(operand == ""){
+                       binaryCode = (binaryCode| n |i) << 12;
+                   }
+                   else {
+                       switch(operand.charAt(0)){
+                           case '#':
+                               binaryCode |= i;
+                               operand = operand.substring(1);
+                               break;
+                           case '@':
+                               binaryCode |= n;
+                               operand = operand.substring(1);
+                           default:
+                               binaryCode |= n | i;
+                               
+                               if(operand.contains(",")){
+                                    binaryCode |= x;   
+                               }
+                               break;
+                           
+                       }
+                       
+                   
+                   }
+                   int displacement;
+                   if(SYMLOC == -1){
+                       displacement = Integer.parseInt(operand);
+                   } else {
+                       int targetAddress = SYMLOC;
+                       displacement = targetAddress;
+                       
+                   }
+                   
+                   
+                   System.out.println(Integer.toHexString(binaryCode));
+                   break;
+                case 4:
+                   OBJCODE = OBJCODE = String.format("%08X",z);
+                   break;
+                default:
+                    OBJCODE = "DEFAULT";
+                    break;
+            }
+        }
+        else {
+            
+        }
+        System.out.println(OBJCODE+" ");
+        
+    }
+    
+    
+    public static Integer setFormat(String END, String START){
+        int x = Integer.parseInt(END,16);
+        int y = Integer.parseInt(START,16);
+        
+        
+        int value = x-y;
+        return value;
+    }
+    
+    @Override
+    public String toString(){
+        String text;
+        if(SYMBOL != null){
+            text = OPCODE + " "+SYMBOL+" "+FORMAT+" "+VALUES;
+        }
+        else if (!OPCODE.equals("END")){
+            text = OPCODE +" "+FORMAT;
+        }
+        else {
+            text = OPCODE;
+        }
+        return text;
     }
 }
