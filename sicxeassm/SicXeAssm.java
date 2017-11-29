@@ -4,170 +4,224 @@
 
 package sicxeassm;
 
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Hashtable;
-import java.util.Scanner;
 import java.util.ArrayList;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.ListIterator;
+import java.util.Scanner;
 
 
 
 public class SicXeAssm {
-
-    //OPTABE and SYMTAB
+    private static int LOCCTR;
+    private static int STARTADDRESS;
+    private static int PROGRAMLENGTH;
+    private static int BASEADDRESS;
+    public int LASTENTEREDADDRESS;
+    public static boolean startedText;
+    private static String PROGRAMNAME;
     private static Hashtable<String, OPT> OPTAB;
     private static Hashtable<String, SYM> SYMTAB;
-    //Location Counter and Starting Address    
-    public static Integer LOCCTR;
-    public static Integer STARTADDRESS;
-    public static Integer PROGRAMLENGTH;
-    
-    //Writing to Intermediate files and OUTPUT FILES
-    private static FileWriter FILEWRITER;
-    private static FileWriter FILEWRITEROBJ;
-    private static FileWriter FILEWRITERLST;
-    
-    private static PrintWriter PRINTWRITER;
-    //String to for supporting the looping based off OPCODE
-    private static String OPCODE;
-    private static String ERROR;
+    public static ArrayList<INSTRUCTION> INSTRUCTIONS;
+    public static ListIterator<INSTRUCTION> LISTINSTRUCTIONS;
     
     public static void main(String[] args) {
-        //Init OPTAB AND SYMTAB
-        OPTAB = createOPTAB();
-        SYMTAB = createSYMTAB();
-        //Init FileWriting
-        FILEWRITER = createFileWriter("intermediate.txt");
+        OPTAB = INITIALIZERS.getOPTAB();
+        SYMTAB = INITIALIZERS.getSYMTAB();
         
-        FILEWRITEROBJ = createFileWriter(args[0]+".obj");
-        FILEWRITERLST = createFileWriter(args[0]+".lst");
-        
-        PRINTWRITER = createPrintWriter(FILEWRITER);
-        
-        //PassOne
-        passOne(args[0]);
-        
-        passTwo("intermediate.txt");
-        
-        
-        
-        
-        //System.out.println(Integer.toHexString(OPTAB.get("CLEAR").getOpcode()));
-        
+        try {
+            passOne(args[0]);
+            passTwo(args[0]);
+        }
+        catch(FileNotFoundException e){
+            e.printStackTrace();
+            System.out.println("FILE NOT FOUND!");
+        }
         
     }
     
-    //Init Functions
-    public static Hashtable<String, OPT> createOPTAB() {
+    
+    public static void passOne(String filename) throws FileNotFoundException{
+        File file = new File(filename);
+        Scanner fileScanner = new Scanner(file);
         
-        //Default load factor is .75
-        Hashtable hashTable = new Hashtable(59);
+        FileWriter Intermediate = createFileWriter("Intermediate.txt");
+        PrintWriter intWriter = createPrintWriter(Intermediate);
         
-        //Constant Directives
-        hashTable.put("START",new OPT("START",0,0));
-        hashTable.put("END",new OPT("END",0,0));
-        hashTable.put("BYTE",new OPT("BYTE",0,0));
-        hashTable.put("WORD",new OPT("WORD",0,0));
-        hashTable.put("RESB",new OPT("RESB",0,0));
-        hashTable.put("RESW",new OPT("RESW",0,0));
-        hashTable.put("BASE", new OPT("BASE",0,0));
+        INSTRUCTIONS = new ArrayList();
+        String SYMBOL = null;
+        String OPCODE = null;
+        String OPERAND = null;
+        String COMMENT = null;
+        LOCCTR = 0;
+        
+        String inputOfLine = fileScanner.nextLine().trim();
+        while(isLineEmpty(inputOfLine) && fileScanner.hasNextLine() == true){
+            inputOfLine = fileScanner.nextLine().trim();  
+        }
+        
+        String[] operations = inputOfLine.trim().split("\\s+");
+        
+        if(operations[1].equals("START")){
+            PROGRAMNAME = operations[0];
+            OPCODE = operations[1];
+            STARTADDRESS = Integer.parseInt(operations[2]);
+            LOCCTR = Integer.parseInt(operations[2]);
+        }
+        
+        inputOfLine = fileScanner.nextLine().trim();
         
         
-        //Mnemonics with format size and HEX converted to decimal
-        //0x## tells the compiler to convert the number to its decimal form
-        //First page of commands in APPENDIX A
-        hashTable.put("ADD", new OPT("ADD",3,4,0x18));
-        hashTable.put("ADDF", new OPT("ADDF",3,4,0x58));
-        hashTable.put("ADDR", new OPT("ADDR",2,0x90));
-        hashTable.put("AND", new OPT("AND",3,4,0x40));
-        hashTable.put("CLEAR", new OPT("CLEAR",2,0xB4));
-        hashTable.put("COMP", new OPT("COMP",3,4,0x28));
-        hashTable.put("COMPF", new OPT("COMPF",3,4,0x88));
-        hashTable.put("COMPR",new OPT("COMPR",2,0xA0));
-        hashTable.put("DIV", new OPT("DIV",3,4,0x24));
-        hashTable.put("DIVF", new OPT("DIVF",3,4,0x64));
-        hashTable.put("DIVR", new OPT("DIVR",3,4,0x9C));
-        hashTable.put("FIX", new OPT("FIX",1,0xC4));
-        hashTable.put("FLOAT", new OPT("FLOAT",1,0xC0));
-        hashTable.put("J", new OPT("J",3,4,0x3C));
-        hashTable.put("JEQ", new OPT("JEQ",3,4,0x30));
-        hashTable.put("JGT", new OPT("JGT",3,4,0x34));
-        hashTable.put("JLT", new OPT("JLT",3,4,0x38));
-        hashTable.put("JSUB", new OPT("JSUB",3,4,0x48));
-        hashTable.put("LDA", new OPT("LDA",3,4,0x00));
-        hashTable.put("LDB", new OPT("LDB",3,4,0x68));
-        hashTable.put("LDCH", new OPT("LDCH",3,4,0x50));
-        hashTable.put("LDF", new OPT("LDF",3,4,0x70));
-        hashTable.put("LDL", new OPT("LDL",3,4,0x08));
-        hashTable.put("LDS", new OPT("LDS",3,4,0x6C));
-        hashTable.put("LDT", new OPT("LDT",3,4,0x74));
-        hashTable.put("LDX", new OPT("LDX",3,4,0x04));
-        hashTable.put("MUL", new OPT("MUL",3,4,0x20));
+        while(!OPCODE.equals("END")){
+            OPCODE = "";
+            SYMBOL = "";
+            OPERAND = "";
+            COMMENT = "";
+            String[] operate;
+            
+            while(isLineEmpty(inputOfLine) && fileScanner.hasNextLine()){
+                inputOfLine = fileScanner.nextLine();
+            }
+            if(inputOfLine.startsWith(".")){
+                COMMENT = inputOfLine.trim();   
+            }
+            else {
+                if(inputOfLine.contains(".") & inputOfLine.charAt(0) != '.'){
+                operations = inputOfLine.trim().split("\\.");
+                COMMENT = "."+operations[1];
+                operate = operations[0].trim().split("\\s+");
+                }
+                 else {
+                operate = inputOfLine.trim().split("\\s+");
+                }
+                if(operate.length == 3){
+                    SYMBOL = operate[0];
+                    OPCODE = operate[1];
+                    OPERAND = operate[2];
+                }else if(operate.length == 2){
+                    OPCODE = operate[0];
+                    OPERAND = operate[1];
+                }else if(operate.length == 1){
+                    OPCODE = operate[0];
+                }else if(operate == null){
+                
+                }
+            }
+            
+            if(!SYMBOL.equals("")){
+                if(SYMTAB.contains(SYMBOL)){
+                    System.out.println("DUPLICATE SYMBOL");
+                }
+                else {
+                    SYMTAB.put(SYMBOL,new SYM(SYMBOL,LOCCTR));
+                }
+            }
+            
+            if(!OPCODE.equals("")){
+                
+                INSTRUCTION ins = new INSTRUCTION(SYMBOL,OPCODE,OPERAND,LOCCTR);
+                int length = LOCCTR;
+               
+                
+                addToList(ins);
+                
+                LOCCTR = incLOCCTR(LOCCTR,OPCODE,OPERAND);
+                length = LOCCTR - length;
+                ins.setLength(length);
+                //System.out.println(ins);
+                if(COMMENT != ""){
+                    intWriter.print(ins+" "+COMMENT+"\n");
+                } else {
+                    intWriter.print(ins+"\n");
+                }
+                      
+                        
+            }
+            
+            
+            
+            //System.out.println(SYMBOL+" "+OPCODE+" "+OPERAND);
+                
+            
+            if(fileScanner.hasNextLine()){
+                inputOfLine = fileScanner.nextLine();
+            }
+            
+        }
+        intWriter.close();
         
-        //Second page begins ("This is purely so we can make sure its correct later")
-        hashTable.put("MULF", new OPT("MULF",3,4,0x60));
-        hashTable.put("MULR", new OPT("MULR",2,0x98));
-        hashTable.put("NORM", new OPT("NORM",1,0xC8));
-        hashTable.put("OR", new OPT("OR",3,4,0x44));
-        hashTable.put("RD", new OPT("RD",3,4,0xD8));
-        hashTable.put("RMO", new OPT("RMO",2,0xAC));
-        hashTable.put("RSUB", new OPT("RSUB",3,4,0x4C));
-        hashTable.put("SHIFTL", new OPT("SHIFTL",2,0xA4));
-        hashTable.put("SHIFTR", new OPT("SHIFTR",2,0xA8));
-        hashTable.put("STA", new OPT("STA",3,4,0x0C));
-        hashTable.put("STB", new OPT("STB",3,4,0x78));
-        hashTable.put("STCH", new OPT("STCH",3,4,0x54));
-        hashTable.put("STF", new OPT("STF",3,4,0x80));
-        hashTable.put("STS", new OPT("STS",3,4,0x7C));
-        hashTable.put("STT", new OPT("STT",3,4,0x84));
-        hashTable.put("STX", new OPT("STX",3,4,0x10));
-        hashTable.put("SUB", new OPT("SUB",3,4,0x1C));
-        hashTable.put("SUBF", new OPT("SUBF",3,4,0x5C));
-        
-        //Third and last page of APPENDIX A instructions
-        hashTable.put("SUBR", new OPT("SUBR",2,0x94));
-        hashTable.put("TD", new OPT("TD",3,4,0xE0));
-        hashTable.put("TIX", new OPT("TIX",3,4,0x2C));
-        hashTable.put("TIXR", new OPT("TIXR",2,0xB8));
-        hashTable.put("WD", new OPT("WD",3,4,0xDC));
-        
-        //List of UNSUPPORTED COMMANDS FOR ERROR HANDLING
-        //Set format to -1 for UNSUPPORTED COMMAND
-        hashTable.put("LPS", new OPT("RD",-1,0));
-        hashTable.put("SIO", new OPT("SIO",-1,0));
-        hashTable.put("SSK", new OPT("SSK",-1,0));
-        hashTable.put("STI", new OPT("STI",-1,0));
-        hashTable.put("STSW", new OPT("STSW",-1,0));
-        hashTable.put("SVC", new OPT("SVC",-1,0));
-        hashTable.put("TIO", new OPT("TIO",-1,0));
-        hashTable.put("HIO", new OPT("HIO",-1,0));
-        hashTable.put("EQU", new OPT("EQU",-1,0));
-        hashTable.put("USE", new OPT("USE",-1,0));
-        hashTable.put("CSECT", new OPT("CSECT",-1,0));
-          
-        return hashTable;
-    }
-    public static Hashtable<String, SYM> createSYMTAB(){
-        Hashtable hash = new Hashtable();
-        hash.put("A",new SYM("A",0));
-        hash.put("X",new SYM("X",1));
-        hash.put("L",new SYM("L",2));
-        hash.put("B",new SYM("B",3));
-        hash.put("S",new SYM("S",4));
-        hash.put("T",new SYM("T",5));
-        hash.put("F",new SYM("F",6));
-        hash.put("PC",new SYM("PC",8));
-        hash.put("SW",new SYM("SW",9));
-        return hash;
+        PROGRAMLENGTH = LOCCTR - STARTADDRESS;
+        System.out.println("PROGRAM LENGTH: "+Integer.toHexString(PROGRAMLENGTH));
     }
     
+    public static void passTwo(String filename){
+        FileWriter OBJECTCODE = createFileWriter(filename+".obj");
+        FileWriter LSTFILE = createFileWriter(filename+".lst");
+        
+        PrintWriter toOBJ = createPrintWriter(OBJECTCODE);
+        
+        
+        
+        toOBJ.print(new HeaderRecord(PROGRAMNAME,STARTADDRESS,PROGRAMLENGTH));
+        
+        LISTINSTRUCTIONS = INSTRUCTIONS.listIterator();
+        while(LISTINSTRUCTIONS.hasNext()){
+            INSTRUCTION ins = LISTINSTRUCTIONS.next();
+            
+            if(ins.OPCODE.equals("BASE")){
+                BASEADDRESS = SYMTAB.get(ins.OPERAND).getAddress();
+            }else {    
+            String objCode = createObjectCode(ins);
+            ins.setObjectCode(objCode);
+            }          
+        } 
+        LISTINSTRUCTIONS = INSTRUCTIONS.listIterator();
+        startedText = false;
+        int lastRecord = STARTADDRESS;
+        int lastLength = 0;
+        TextRecord text = new TextRecord(STARTADDRESS);
+        while(LISTINSTRUCTIONS.hasNext()){
+            INSTRUCTION ins = LISTINSTRUCTIONS.next();
+            
+            System.out.println(ins.OPCODE);
+            System.out.println(ins.OBJECTCODE);
+            System.out.println(ins.LENGTH);
+            
+            if(startedText == false){
+                text = new TextRecord(ins.ADDRESS);
+                text.add(ins.OBJECTCODE);
+                startedText = true;
+                
+            } else {
+                    startedText = false;
+                    text.add(ins.OBJECTCODE);
+                    toOBJ.print(text+"\n");
+            }
+        }
+  
+        
+        toOBJ.close();
+    }
+    
+    
+    
+    public static boolean isLineEmpty(String line){
+        if(line.isEmpty()){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
     public static FileWriter createFileWriter(String fileName){
         try {
-        return new FileWriter(fileName);
+            return new FileWriter(fileName);
         }
         catch(IOException e){
             e.printStackTrace();
@@ -175,277 +229,18 @@ public class SicXeAssm {
             return null;
         }
     }
-    public static PrintWriter createPrintWriter(FileWriter filewriter){
-        return new PrintWriter(filewriter);
+    public static PrintWriter createPrintWriter(FileWriter file){
+        return new PrintWriter(file);
     }
-    //Add to SYMTAB
-    public static void addToSYMTAB(String label, SYM sym){
-               
-        if(SYMTAB.contains(label)){
-            SYMTAB.get(label).setFlags("Duplicate Label");
-        }
-        else{      
-        SYMTAB.put(label,sym); 
-        }
+    public static void addToList(INSTRUCTION x){
+        INSTRUCTIONS.add(x);
     }
-    
-    public static void passOne(String filename){
-        try {
-            //INIT File
-            File file = new File(filename);
-            Scanner scan = new Scanner(file);
-            
-            //INIT Variables
-            String SYMBOL = null;
-            String OPCODE = null;
-            String OPERAND = null;
-            String COMMENT = null;
-            Integer LOCCTR = null;
-            
-            
-            //Begins the parsing of the first line
-            String firstLine = scan.nextLine();
-            
-            //Loops until it finds the first line and it is not empty
-            while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
-                    firstLine = scan.nextLine();
-                }
-            
-            //Spilts the based on characters trailed by whitespace
-            String[] line = firstLine.trim().split("\\s+");
-            
-            //Checks to see this is a comment line
-            if(line[0].charAt(0) == '.'){
-                writeToFile(firstLine.trim());
-                firstLine = scan.nextLine();
-            }
-            //Checks if OPCODE == START
-            else {
-                if(line[1].equals("START")){
-
-                    OPCODE = line[1].trim();
-                    LOCCTR = Integer.parseInt(line[2]);
-                    STARTADDRESS = Integer.parseInt(line[2]);
-                    writeToFile(line[0]);
-                    writeToFile(OPCODE);
-                    writeToFile(LOCCTR.toString());
-                    writeToFile(LOCCTR.toString());
-                    writeToFile("");
-                }
-            }
-            
-            while(!OPCODE.equals("END")){
-                
-                SYMBOL = null;
-                OPERAND = null;
-                COMMENT = null;
-                setErrors(null);
-                
-                
-                if(scan.hasNextLine()){
-                    firstLine = scan.nextLine();
-                }
-                //Loop until line is not empty
-                while(firstLine.isEmpty() == true && scan.hasNextLine() == true){
-                    firstLine = scan.nextLine();
-                }
-                
-                ArrayList<String> correctLine = new ArrayList<String>();
-                
-                //Split based off whitespace
-                line = firstLine.trim().split("\\s+");
-                
-                int index = -1;
-                for(int i = 0; i < line.length; i++){
-                    if(line[i].charAt(0) == '.'){
-                        index = i;
-                    }
-                }
-                if(index != -1){
-                        COMMENT = "";
-                    for(int i = index; i < line.length; i++){
-                        COMMENT = COMMENT.concat(line[i]+" ");
-                    }
-                    for(int i =0; i < index; i++){
-                        correctLine.add(line[i]);
-                    }
-                    correctLine.add(COMMENT);
-                }
-                else {
-                    for(int i =0; i < line.length; i++){
-                        correctLine.add(line[i]);
-                    }
-                }
-                
-                
-                
-                
-                //Check if line is a comment
-                if(COMMENT != null && correctLine.size() == 1){
-                    
-                    writeToFile(COMMENT);
-                    writeToFile("");
-                }
-                else {
-                    String wordOne = correctLine.get(0);
-                    String wordTwo = correctLine.get(0).substring(1);
-                    
-                    
-                    if(OPTAB.containsKey(wordOne) || OPTAB.containsKey(wordTwo)){
-                        
-                        OPCODE = correctLine.get(0);
-                        //OPCODE
-                        if(correctLine.size() == 1){
-                            writeToFile(OPCODE);
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            LOCCTR  = incLOCCTR(OPCODE,OPERAND,LOCCTR);
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            if(ERROR != null){
-                                writeToFile(ERROR);
-                            }
-                            writeToFile("");
-                        }
-                        else if(correctLine.size() == 2){
-                            //OPCODE COMMENT
-                            if(COMMENT != null){
-                                writeToFile(OPCODE);
-                                writeToFile(Integer.toHexString(LOCCTR));
-                                LOCCTR  = incLOCCTR(OPCODE,OPERAND,LOCCTR);
-                                writeToFile(Integer.toHexString(LOCCTR));
-                                writeToFile(COMMENT);
-                                if(ERROR != null){
-                                writeToFile(ERROR);
-                                }
-                                writeToFile("");
-                                
-                            }
-                            //OPCODE OPERAND
-                            else {
-                                OPERAND = correctLine.get(1);
-                                writeToFile(OPCODE);
-                                writeToFile(OPERAND);
-                                writeToFile(Integer.toHexString(LOCCTR));
-                                LOCCTR  = incLOCCTR(OPCODE,OPERAND, LOCCTR);
-                                writeToFile(Integer.toHexString(LOCCTR));
-                                if(ERROR != null){
-                                writeToFile(ERROR);
-                                }
-                                writeToFile("");
-                            }
-                        }
-                        //OPCODE OPERAND COMMENT
-                        else if(correctLine.size() == 3){
-                                OPERAND = correctLine.get(1);
-                                
-                                writeToFile(OPCODE);
-                                writeToFile(OPERAND);
-                                writeToFile(Integer.toHexString(LOCCTR));
-                                LOCCTR  = incLOCCTR(OPCODE,OPERAND, LOCCTR);
-                                writeToFile(Integer.toHexString(LOCCTR));
-                                writeToFile(COMMENT);
-                                if(ERROR != null){
-                                writeToFile(ERROR);
-                                }
-                                writeToFile("");
-                        }
-                        
-                    }
-                    else {
-                        SYMBOL = correctLine.get(0);
-                        OPCODE = correctLine.get(1);
-                        OPERAND = correctLine.get(2);
-                        
-                        if(SYMTAB.contains(SYMBOL)){
-                            ERROR = "THIS IS A DUPLICATE SYMBOL";
-                        }
-                        else {
-                            SYMTAB.put(SYMBOL, new SYM(SYMBOL,LOCCTR));
-                        }
-                        //SYMBOL DIRECTIVE
-                        if(correctLine.size() == 3){
-                            writeToFile(SYMBOL);
-                            writeToFile(OPCODE);
-                            writeToFile(OPERAND);
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            LOCCTR  = incLOCCTR(OPCODE, OPERAND, LOCCTR);
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            if(ERROR != null){
-                                writeToFile(ERROR);
-                               } 
-                            writeToFile("");
-                            
-                        }
-                        else {
-                            writeToFile(SYMBOL);
-                            writeToFile(OPCODE);
-                            writeToFile(OPERAND);
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            LOCCTR = incLOCCTR(OPCODE, OPERAND, LOCCTR);
-                            writeToFile(Integer.toHexString(LOCCTR));
-                            writeToFile(COMMENT);
-                            if(ERROR != null){
-                                writeToFile(ERROR);
-                               } 
-                            writeToFile("");
-                        }
-                    
-                    
-                    }
-                 
-                }
-       
-            }
-            
-            
-            
-            
-            
-           
-            
-             
-               
-                
-                
-            
-        PROGRAMLENGTH = LOCCTR - STARTADDRESS;    
-        }
-        catch(FileNotFoundException e){
-            e.printStackTrace();
-            System.out.println("The File Was Not Found!");
-        }
-        
-        closeFile();
-    }
-    
-    public static void passTwo(String filename){
-        PRINTWRITER = createPrintWriter(FILEWRITEROBJ); 
-        try{
-            //INIT File
-            File file = new File(filename);
-            Scanner scan = new Scanner(file);
-            String line = scan.nextLine().trim();
-            
-            while(line == null){
-                line = scan.nextLine();
-            }
-            
-            
-          PRINTWRITER.printf('H'+"%-6.6s"+"%06X"+"%06X",line,STARTADDRESS,PROGRAMLENGTH);
-         }
-         catch(FileNotFoundException e){
-            e.printStackTrace();
-            System.out.println("The File Was Not Found!");
-        }
-        closeFile(); 
-    }
-    
-    //LOCCTR
-    public static Integer incLOCCTR(String OPCODE, String OPERAND, Integer LOCCTR){
+    public static int incLOCCTR(int LOCCTR, String OPCODE, String OPERAND){
+        String substring = "";
         if(OPCODE.charAt(0) == '+'){
-            String substring = OPCODE.substring(1);
+            substring = OPCODE.substring(1);
             if(OPTAB.get(substring).getFormat2() != null){
                 return LOCCTR += OPTAB.get(substring).getFormat2();
-                
             }
             else {
                 return LOCCTR;
@@ -458,6 +253,9 @@ public class SicXeAssm {
             else if(OPCODE.equals("RESW")){
                 return LOCCTR += 3 * Integer.parseInt(OPERAND);
                 
+            }
+            else if (OPCODE.equals("BASE")){
+                return LOCCTR;
             }
             else if(OPCODE.equals("RESB")){
                 return LOCCTR += Integer.parseInt(OPERAND);
@@ -483,7 +281,7 @@ public class SicXeAssm {
                     }
                 }
                 else {
-                    setErrors("UNRECOGNIZED CHARACTERS");
+                    
                 }
                 return LOCCTR += amountToAdd;
             }
@@ -492,31 +290,504 @@ public class SicXeAssm {
                    return LOCCTR += OPTAB.get(OPCODE).getFormat1();
                 }
                 else {
-                    setErrors("FORMAT NOT SUPPORTED");
+                    
                     return LOCCTR;
                 }
                 
             }
             
         }
-    }
-    
-    
-    //File Writing Functions
-    public static void writeToFile(String line){
-        PRINTWRITER.print(line+"\n");
-    }
-    public static void writeFormat(String line){
+        
+        
+        
+        
+        
         
     }
-    public static void closeFile(){
-        PRINTWRITER.close();
+    
+    public static String createObjectCode(INSTRUCTION ins){
+        
+        String OBJECTCODE = "";
+        int BINCODE = 0;
+        
+        
+
+        if(ins.isDirective){
+            if(ins.OPCODE.equals("WORD")){
+                BINCODE = Integer.parseInt(ins.OPERAND);
+                return OBJECTCODE = String.format("%06X",BINCODE);     
+            } else if(ins.OPCODE.equals("BASE")){
+                
+            } else if(ins.OPCODE.equals("NOBASE")){
+                BASEADDRESS = 0;
+            } else if(ins.OPCODE.equals("BYTE")){
+                char testChar = ins.OPERAND.charAt(0);
+                
+                int start = ins.OPERAND.indexOf('\'');
+                int end = ins.OPERAND.length() - 1;
+                
+                String charToParse = ins.OPERAND.substring(start+1, end);
+                
+                if(testChar == 'C'){
+                    for(int i = 0; i < charToParse.length(); i++){
+                        
+                        return OBJECTCODE += Integer.toHexString(charToParse.charAt(i));
+                        
+                    }
+                    ins.setLength(charToParse.length());
+                    
+                } else if(testChar == 'X'){
+                        ins.setLength(charToParse.length()/2);
+                        return OBJECTCODE = charToParse;
+                        
+                }
+                
+                
+                
+            }
+        } else if(OPTAB.containsKey(ins.OPCODE)){
+            
+            switch (ins.LENGTH){
+                case 1:
+                    OBJECTCODE = Integer.toHexString(OPTAB.get(ins.OPCODE).getOpcode());
+                    break;
+                case 2:
+                    OBJECTCODE = Integer.toHexString(OPTAB.get(ins.OPCODE).getOpcode()).toUpperCase();
+                    String format = String.format("%01X",SYMTAB.get(ins.OPERANDS[0]).getAddress());
+                    OBJECTCODE += format;
+                    if(ins.OPERANDS[1] != null ){
+                        format = Integer.toHexString(SYMTAB.get(ins.OPERANDS[1]).getAddress());
+                    } else {
+                        format = Integer.toHexString(0);
+                    }
+                    OBJECTCODE += format;
+                    break;
+                case 3:
+                case 4:
+                    int n = 1 << 5;
+                    int i = 1 << 4;
+                    int x = 1 << 3;
+                    int b = 1 << 2;
+                    int p = 1 << 1;
+                    int e = 1;
+                    
+                    BINCODE = OPTAB.get(ins.OPCODE).getOpcode() << 4;
+                    
+                    String operand = ins.OPERAND;
+                    int outsideDisplacement = 0;
+                    boolean hasEntered = false;
+                    if(ins.OPCODE.equals("RSUB")){
+                        BINCODE |= n | i;
+                        BINCODE = (BINCODE) << 12;
+                    } else {
+                        if(ins.isImmediate){
+                            BINCODE |= i;
+                            operand = operand.substring(1);
+                        } else if(ins.isIndirect) {
+                            BINCODE |= n;
+                            operand = operand.substring(1);
+                        } else {
+                            BINCODE |= n | i;
+                            if(ins.isIndexed){
+                                BINCODE |= x;
+                            }
+                        }
+                    }
+                    
+                    int displacement;
+                    String substring = "";
+                    
+                    if(ins.isImmediate){
+                        substring = ins.OPERANDS[0].substring(1);
+                    } else if(ins.isIndirect){
+                        substring = ins.OPERANDS[0].substring(1);
+                    } else {
+                        substring = ins.OPERANDS[0];
+                    }
+                        
+                    if(SYMTAB.get(substring) == null & substring != ""){
+                        String charLess = "";
+                        if(ins.isImmediate){
+                            charLess = ins.OPERANDS[0].substring(1);
+                        } else if(ins.isIndirect){
+                            charLess = ins.OPERANDS[0].substring(1);
+                        } else {
+                            charLess = substring;
+                        }
+                        displacement = Integer.parseInt(charLess);
+                        
+                         if(ins.isFormat4){
+                            BINCODE |= e;
+                            
+                            BINCODE = (BINCODE << 20) | (displacement & 0xFFFFF); 
+                        } else {
+                            BINCODE = (BINCODE << 12) | (displacement & 0xFFF);
+                           
+                        }
+                    } else if(substring != "") {
+                            int targetAddress = SYMTAB.get(substring).getAddress();
+                            displacement = targetAddress;
+                            
+                        if(!ins.isFormat4){
+                            displacement -= ins.ADDRESS + 3;
+                            
+                            if(displacement >= -2048 && displacement <= 2047){
+                                BINCODE |= p;
+                            } else {
+                                BINCODE |= b;
+                                displacement = targetAddress - BASEADDRESS;
+                               
+                            }
+                        } 
+                        
+                        if(ins.isFormat4){
+                            BINCODE |= e;
+                            
+                            BINCODE = (BINCODE << 20) | (displacement & 0xFFFFF); 
+                        } else {
+                            BINCODE = (BINCODE << 12) | (displacement & 0xFFF);
+                           
+                        }
+                        
+                    }
+
+                        OBJECTCODE = String.format(ins.isFormat4 ? "%08X" : "%06X", BINCODE);
+                    break;
+     
+            }
+            
+            
+        }
+      
+        
+        return OBJECTCODE;
+        
     }
-    public static void setErrors(String error){
-        ERROR = error;
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+class INSTRUCTION {
+    
+    public String SYMBOL;
+    public String OPCODE;
+    public String OPERAND;
+    public String[] OPERANDS;
+    public String COMMENT;
+    public String ERRORS;  
+    public boolean isFormat4;
+    public boolean isImmediate;
+    public boolean isIndexed;
+    public boolean isIndirect;
+    public boolean hasOperand;
+    public boolean isDirective;
+    public int LENGTH;
+    public int ADDRESS;
+    public int OPERANDADDRESS;
+    public String OBJECTCODE;
+    
+    public INSTRUCTION(String SYMBOL,String OPCODE, String OPERAND,String COMMENT,String ERRORS,int address){
+        this.SYMBOL = SYMBOL;
+        this.OPCODE = OPCODE;
+        this.OPERAND = OPERAND;
+        this.OPERANDS = setOperands(OPERAND);
+        this.COMMENT = COMMENT;
+        this.ERRORS = ERRORS;
+        this.ADDRESS = address;
+        this.OBJECTCODE = "";
+        this.isFormat4 = isFormat4();
+        this.isDirective = isDirective();
+        
+        if(OPERAND != ""){
+            this.isImmediate = isImmediate();
+            this.isIndexed = isIndexed();
+            this.isIndirect = isIndirect();
+            this.hasOperand = true;
+        } else {
+            this.hasOperand = false;
+        }
+        
+        
+    }
+    
+    public INSTRUCTION(String SYMBOL, String OPCODE, String OPERAND,String ERRORS, int address){
+        this(SYMBOL,OPCODE,OPERAND,null,ERRORS,address);
+    }
+    public INSTRUCTION(String SYMBOL, String OPCODE, String OPERAND,int address){
+        this(SYMBOL,OPCODE,OPERAND,null,null,address);
+    }
+   
+    public INSTRUCTION(String COMMENT){
+        this(null,null,null,COMMENT,0);
+    }
+    
+    public boolean isFormat4(){
+        if(OPCODE.charAt(0) == '+'){
+            OPCODE = OPCODE.substring(1);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    public boolean isImmediate(){
+        if(OPERAND.charAt(0) == '#'){
+            return true;
+        } else {
+            return false;
+        }
+            
+    }
+    public boolean isIndexed(){
+        if(OPERANDS[1] != null && OPERANDS[1].charAt(0) =='X'){
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    public boolean isIndirect(){ 
+        if(OPERAND.charAt(0) == '@'){
+            return true;
+        } else {
+            return false;
+        }
+        
+    }
+    public boolean isDirective(){
+        if(OPCODE.equals("WORD") || OPCODE.equals("RESB") || OPCODE.equals("BYTE") || OPCODE.equals("RESW") || OPCODE.equals("BASE") || OPCODE.equals("NOBASE")){
+            return true;
+        } else {
+            return false;
+        }
+    }
+    
+    public void setLength(int x){
+        LENGTH = x;
+    }
+    public String[] setOperands(String Operand){
+        OPERANDS = new String[2];
+        if(Operand == null){
+            OPERANDS[0] = null;
+            OPERANDS[1] = null;
+            return OPERANDS;
+        }else {
+            if(Operand.contains(",")){
+                OPERANDS = Operand.split("\\,");
+                return OPERANDS;
+            }
+            else {
+                OPERANDS[0] = Operand;
+                OPERANDS[1] = null; 
+                return OPERANDS;
+            }
+        }
+    }
+    public void setOperandAddress(int address){
+        OPERANDADDRESS = address;
+    }
+   
+   
+    public void setObjectCode(String x){
+        this.OBJECTCODE = x;
+    }
+    @Override
+    public String toString(){
+        String test = "";
+            //test += SYMBOL+" "+OPCODE+" "+OPERANDS[0]+ " FORMAT4: "+isFormat4 +" "+"IsImmedaite?: "+isImmediate+" "+"IsIndex: "+isIndexed+" "+Integer.toHexString(ADDRESS);
+            test += SYMBOL+" "+OPCODE+" "+OPERAND+" "+Integer.toHexString(ADDRESS).toUpperCase();
+        return test;
     }
 }
 
+
+
+
+
+class HeaderRecord {
+    public static String PROGRAMNAME;
+    public static Integer STARTADDRESS;
+    public static Integer PROGRAMLENGTH;
+    
+    public HeaderRecord(String ProgramName, int StartAddress,int ProgramLength){
+        PROGRAMNAME = ProgramName;
+        STARTADDRESS = StartAddress;
+        PROGRAMLENGTH = ProgramLength;
+    }
+    
+    @Override
+    public String toString(){
+        String header = "";
+        
+        header = String.format('H'+"%-6.6s"+"%06X"+"%06X"+"\n",PROGRAMNAME,STARTADDRESS,PROGRAMLENGTH);
+        return header;
+    }
+}
+
+class TextRecord {
+    public int STARTADDRESS;
+    public int LENGTH;
+    public ArrayList<String> OBJECTCODES;
+    
+    public int MAX = 30;
+    
+    TextRecord(int start){
+        this.STARTADDRESS = start;
+        LENGTH = 0;
+        OBJECTCODES = new ArrayList<String>();
+    }
+    
+    public boolean add(String objectcode){
+        if(objectcode.length() == 0){
+            return true;
+        } else if(LENGTH + objectcode.length()/2 <= MAX){
+            OBJECTCODES.add(objectcode);
+            LENGTH += objectcode.length()/2;
+            return true;
+        } else {
+            
+            return false;
+        }
+       
+    }
+    
+    @Override
+    public String toString(){
+        String textRecord = String.format("T%06X%02X",STARTADDRESS, LENGTH);
+       ListIterator<String> ins = OBJECTCODES.listIterator();
+        while(ins.hasNext()){
+            String objectCodes = ins.next();
+            textRecord += objectCodes;
+        }
+        return textRecord;
+    }
+}
+
+
+class INITIALIZERS {
+    private static Hashtable<String, OPT> OPTAB;
+    private static Hashtable<String, SYM> SYMTAB;
+    
+    static {
+        OPTAB = new Hashtable(59);
+        
+        //Constant Directives
+        OPTAB.put("START",new OPT("START",0,0));
+        OPTAB.put("END",new OPT("END",0,0));
+        OPTAB.put("BYTE",new OPT("BYTE",0,0));
+        OPTAB.put("WORD",new OPT("WORD",0,0));
+        OPTAB.put("RESB",new OPT("RESB",0,0));
+        OPTAB.put("RESW",new OPT("RESW",0,0));
+        OPTAB.put("BASE", new OPT("BASE",0,0));
+        OPTAB.put("NOBASE",new OPT("NOBASE",0,0));
+        
+        
+        //Mnemonics with format size and HEX converted to decimal
+        //0x## tells the compiler to convert the number to its decimal form
+        //First page of commands in APPENDIX A
+        OPTAB.put("ADD", new OPT("ADD",3,4,0x18));
+        OPTAB.put("ADDF", new OPT("ADDF",3,4,0x58));
+        OPTAB.put("ADDR", new OPT("ADDR",2,0x90));
+        OPTAB.put("AND", new OPT("AND",3,4,0x40));
+        OPTAB.put("CLEAR", new OPT("CLEAR",2,0xB4));
+        OPTAB.put("COMP", new OPT("COMP",3,4,0x28));
+        OPTAB.put("COMPF", new OPT("COMPF",3,4,0x88));
+        OPTAB.put("COMPR",new OPT("COMPR",2,0xA0));
+        OPTAB.put("DIV", new OPT("DIV",3,4,0x24));
+        OPTAB.put("DIVF", new OPT("DIVF",3,4,0x64));
+        OPTAB.put("DIVR", new OPT("DIVR",3,4,0x9C));
+        OPTAB.put("FIX", new OPT("FIX",1,0xC4));
+        OPTAB.put("FLOAT", new OPT("FLOAT",1,0xC0));
+        OPTAB.put("J", new OPT("J",3,4,0x3C));
+        OPTAB.put("JEQ", new OPT("JEQ",3,4,0x30));
+        OPTAB.put("JGT", new OPT("JGT",3,4,0x34));
+        OPTAB.put("JLT", new OPT("JLT",3,4,0x38));
+        OPTAB.put("JSUB", new OPT("JSUB",3,4,0x48));
+        OPTAB.put("LDA", new OPT("LDA",3,4,0x00));
+        OPTAB.put("LDB", new OPT("LDB",3,4,0x68));
+        OPTAB.put("LDCH", new OPT("LDCH",3,4,0x50));
+        OPTAB.put("LDF", new OPT("LDF",3,4,0x70));
+        OPTAB.put("LDL", new OPT("LDL",3,4,0x08));
+        OPTAB.put("LDS", new OPT("LDS",3,4,0x6C));
+        OPTAB.put("LDT", new OPT("LDT",3,4,0x74));
+        OPTAB.put("LDX", new OPT("LDX",3,4,0x04));
+        OPTAB.put("MUL", new OPT("MUL",3,4,0x20));
+        
+        //Second page begins ("This is purely so we can make sure its correct later")
+        OPTAB.put("MULF", new OPT("MULF",3,4,0x60));
+        OPTAB.put("MULR", new OPT("MULR",2,0x98));
+        OPTAB.put("NORM", new OPT("NORM",1,0xC8));
+        OPTAB.put("OR", new OPT("OR",3,4,0x44));
+        OPTAB.put("RD", new OPT("RD",3,4,0xD8));
+        OPTAB.put("RMO", new OPT("RMO",2,0xAC));
+        OPTAB.put("RSUB", new OPT("RSUB",3,4,0x4C));
+        OPTAB.put("SHIFTL", new OPT("SHIFTL",2,0xA4));
+        OPTAB.put("SHIFTR", new OPT("SHIFTR",2,0xA8));
+        OPTAB.put("STA", new OPT("STA",3,4,0x0C));
+        OPTAB.put("STB", new OPT("STB",3,4,0x78));
+        OPTAB.put("STCH", new OPT("STCH",3,4,0x54));
+        OPTAB.put("STF", new OPT("STF",3,4,0x80));
+        OPTAB.put("STS", new OPT("STS",3,4,0x7C));
+        OPTAB.put("STL", new OPT("STL",3,3,0x14));
+        OPTAB.put("STT", new OPT("STT",3,4,0x84));
+        OPTAB.put("STX", new OPT("STX",3,4,0x10));
+        OPTAB.put("SUB", new OPT("SUB",3,4,0x1C));
+        OPTAB.put("SUBF", new OPT("SUBF",3,4,0x5C));
+        
+        //Third and last page of APPENDIX A instructions
+        OPTAB.put("SUBR", new OPT("SUBR",2,0x94));
+        OPTAB.put("TD", new OPT("TD",3,4,0xE0));
+        OPTAB.put("TIX", new OPT("TIX",3,4,0x2C));
+        OPTAB.put("TIXR", new OPT("TIXR",2,0xB8));
+        OPTAB.put("WD", new OPT("WD",3,4,0xDC));
+        
+        //List of UNSUPPORTED COMMANDS FOR ERROR HANDLING
+        //Set format to -1 for UNSUPPORTED COMMAND
+        OPTAB.put("LPS", new OPT("RD",-1,0));
+        OPTAB.put("SIO", new OPT("SIO",-1,0));
+        OPTAB.put("SSK", new OPT("SSK",-1,0));
+        OPTAB.put("STI", new OPT("STI",-1,0));
+        OPTAB.put("STSW", new OPT("STSW",-1,0));
+        OPTAB.put("SVC", new OPT("SVC",-1,0));
+        OPTAB.put("TIO", new OPT("TIO",-1,0));
+        OPTAB.put("HIO", new OPT("HIO",-1,0));
+        OPTAB.put("EQU", new OPT("EQU",-1,0));
+        OPTAB.put("USE", new OPT("USE",-1,0));
+        OPTAB.put("CSECT", new OPT("CSECT",-1,0));
+        
+        SYMTAB = new Hashtable();
+        SYMTAB.put("A",new SYM("A",0));
+        SYMTAB.put("X",new SYM("X",1));
+        SYMTAB.put("L",new SYM("L",2));
+        SYMTAB.put("B",new SYM("B",3));
+        SYMTAB.put("S",new SYM("S",4));
+        SYMTAB.put("T",new SYM("T",5));
+        SYMTAB.put("F",new SYM("F",6));
+        SYMTAB.put("PC",new SYM("PC",8));
+        SYMTAB.put("SW",new SYM("SW",9));
+    }
+    
+    public static Hashtable<String, OPT> getOPTAB(){
+        return OPTAB;
+    }
+    public static Hashtable<String, SYM> getSYMTAB(){
+        return SYMTAB;
+    }
+    
+}
+
+  
 class OPT {
     
     private String Mnemonic;
@@ -567,6 +838,7 @@ class OPT {
     }
     
 }
+
 
 class SYM {
     private String LABEL;
