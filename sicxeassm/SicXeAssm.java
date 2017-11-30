@@ -196,8 +196,6 @@ public class SicXeAssm {
             INSTRUCTION ins = LISTINSTRUCTIONS.next();
             
             System.out.println(ins.OPCODE);
-            System.out.println("Immediate: "+ ins.isImmediate);
-            System.out.println("Format4: "+ins.isFormat4);
             System.out.println(ins.OBJECTCODE);
             System.out.println(ins.LENGTH);
             
@@ -231,7 +229,7 @@ public class SicXeAssm {
                 lastLength = ins.LENGTH;
                 text = nextText;
             } else if(ins.OPCODE.equals("END")){
-                toOBJ.print(text);
+                toOBJ.print(text+"\n");
             }
             else {
                 text.add(ins.OBJECTCODE);
@@ -246,11 +244,13 @@ public class SicXeAssm {
         LISTMODS = MODRECORDS.listIterator();
         System.out.println("Size: "+MODRECORDS.size());
         int x = 0;
-        while(LISTMODS.hasNext()){
+        
+       while(LISTMODS.hasNext()){
+               LISTMODS.next();
                ModRecord mod = MODRECORDS.get(x);
                toOBJ.print(mod+"\n");
                x++;
-        }
+        } 
   
         
         toOBJ.close();
