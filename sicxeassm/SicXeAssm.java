@@ -134,6 +134,9 @@ public class SicXeAssm {
                 if(COMMENT != ""){
                     ins.setComment(COMMENT);
                 }
+                if(OPTAB.get(ins.OPCODE).getFormat1() == -1){
+                    ins.setErrors(ins.OPCODE+" is not supported");
+                }
                 
                 addToList(ins);
                 
@@ -253,7 +256,10 @@ public class SicXeAssm {
        while(LISTINSTRUCTIONS.hasNext()){
            LISTINSTRUCTIONS.next();
            INSTRUCTION ins = INSTRUCTIONS.get(y);
-           String insFormat = String.format("%-15d%-15s%-16s%-15s%-15s%-15s%-30s",lineNumber,Integer.toString(ins.ADDRESS),ins.OBJECTCODE,ins.SYMBOL,ins.OPCODE,ins.OPERAND,ins.COMMENT);
+           String insFormat = String.format("%-15d%-15s%-16s%-15s%-15s%-15s%-30s",lineNumber,Integer.toHexString(ins.ADDRESS).toUpperCase(),ins.OBJECTCODE,ins.SYMBOL,ins.OPCODE,ins.OPERAND,ins.COMMENT);
+           if(ins.ERRORS != null){
+               toLST.print("ERROR: "+ins.ERRORS+"\n");
+           }
            lineNumber++;
            y++;
            toLST.print(insFormat+"\n");
@@ -634,6 +640,9 @@ class INSTRUCTION {
     
     public void setComment(String x){
         this.COMMENT = x;
+    }
+    public void setErrors(String x){
+        this.ERRORS = x;
     }
     public void setLength(int x){
         LENGTH = x;
