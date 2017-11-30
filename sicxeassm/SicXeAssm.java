@@ -30,7 +30,9 @@ public class SicXeAssm {
     private static Hashtable<String, OPT> OPTAB;
     private static Hashtable<String, SYM> SYMTAB;
     public static ArrayList<INSTRUCTION> INSTRUCTIONS;
+    public static ArrayList<ModRecord> MODRECORDS;
     public static ListIterator<INSTRUCTION> LISTINSTRUCTIONS;
+    public static ListIterator<ModRecord> LISTMODS;
     
     public static void main(String[] args) {
         OPTAB = INITIALIZERS.getOPTAB();
@@ -165,6 +167,8 @@ public class SicXeAssm {
         FileWriter OBJECTCODE = createFileWriter(filename+".obj");
         FileWriter LSTFILE = createFileWriter(filename+".lst");
         
+        MODRECORDS = new ArrayList();
+        
         PrintWriter toOBJ = createPrintWriter(OBJECTCODE);
         
         
@@ -187,23 +191,65 @@ public class SicXeAssm {
         int lastRecord = STARTADDRESS;
         int lastLength = 0;
         TextRecord text = new TextRecord(STARTADDRESS);
+        
         while(LISTINSTRUCTIONS.hasNext()){
             INSTRUCTION ins = LISTINSTRUCTIONS.next();
             
             System.out.println(ins.OPCODE);
+            System.out.println("Immediate: "+ ins.isImmediate);
+            System.out.println("Format4: "+ins.isFormat4);
             System.out.println(ins.OBJECTCODE);
             System.out.println(ins.LENGTH);
             
+            
+            /* if((lastRecord+lastLength) != ins.ADDRESS ){
+                startedText = false;
+                toOBJ.print(text+"\n");
+            }*/
+            
+            
             if(startedText == false){
+                
                 text = new TextRecord(ins.ADDRESS);
                 text.add(ins.OBJECTCODE);
-                startedText = true;
+                lastRecord = ins.ADDRESS;
+                lastLength = ins.LENGTH;
                 
-            } else {
-                    startedText = false;
-                    text.add(ins.OBJECTCODE);
-                    toOBJ.print(text+"\n");
+                startedText = true;
+            } else if((text.LENGTH + ins.LENGTH) >= 30 ) {
+                toOBJ.print(text+"\n");
+                TextRecord nextText = new TextRecord(ins.ADDRESS);
+                nextText.add(ins.OBJECTCODE);
+                lastRecord = ins.ADDRESS;
+                lastLength = ins.LENGTH;
+                text = nextText;
+            } else if(ins.ADDRESS != (lastRecord + lastLength)){ 
+                toOBJ.print(text+"\n");
+                TextRecord nextText = new TextRecord(ins.ADDRESS);
+                nextText.add(ins.OBJECTCODE);
+                lastRecord = ins.ADDRESS;
+                lastLength = ins.LENGTH;
+                text = nextText;
+            } else if(ins.OPCODE.equals("END")){
+                toOBJ.print(text);
             }
+            else {
+                text.add(ins.OBJECTCODE);
+                lastRecord = ins.ADDRESS;
+                lastLength = ins.LENGTH;
+            }
+            if(ins.isFormat4 & !ins.isImmediate){
+                MODRECORDS.add(new ModRecord(ins.ADDRESS));
+            }
+            
+        }
+        LISTMODS = MODRECORDS.listIterator();
+        System.out.println("Size: "+MODRECORDS.size());
+        int x = 0;
+        while(LISTMODS.hasNext()){
+               ModRecord mod = MODRECORDS.get(x);
+               toOBJ.print(mod+"\n");
+               x++;
         }
   
         
@@ -318,7 +364,8 @@ public class SicXeAssm {
                 BINCODE = Integer.parseInt(ins.OPERAND);
                 return OBJECTCODE = String.format("%06X",BINCODE);     
             } else if(ins.OPCODE.equals("BASE")){
-                
+                System.out.println(ins.OPERAND);
+                BASEADDRESS = SYMTAB.get(ins.OPERAND).getAddress();
             } else if(ins.OPCODE.equals("NOBASE")){
                 BASEADDRESS = 0;
             } else if(ins.OPCODE.equals("BYTE")){
@@ -332,10 +379,11 @@ public class SicXeAssm {
                 if(testChar == 'C'){
                     for(int i = 0; i < charToParse.length(); i++){
                         
-                        return OBJECTCODE += Integer.toHexString(charToParse.charAt(i));
+                         OBJECTCODE += Integer.toHexString(charToParse.charAt(i)).toUpperCase();
                         
                     }
-                    ins.setLength(charToParse.length());
+                    return OBJECTCODE;
+                    
                     
                 } else if(testChar == 'X'){
                         ins.setLength(charToParse.length()/2);
@@ -639,6 +687,7 @@ class HeaderRecord {
 class TextRecord {
     public int STARTADDRESS;
     public int LENGTH;
+    public boolean wasAdded;
     public ArrayList<String> OBJECTCODES;
     
     public int MAX = 30;
@@ -649,16 +698,14 @@ class TextRecord {
         OBJECTCODES = new ArrayList<String>();
     }
     
-    public boolean add(String objectcode){
+    public void add(String objectcode){
         if(objectcode.length() == 0){
-            return true;
+            
         } else if(LENGTH + objectcode.length()/2 <= MAX){
             OBJECTCODES.add(objectcode);
             LENGTH += objectcode.length()/2;
-            return true;
         } else {
-            
-            return false;
+
         }
        
     }
@@ -675,6 +722,21 @@ class TextRecord {
     }
 }
 
+class ModRecord {
+    public int STARTADDRESS;
+    public int LENGTH = 5;
+    
+    ModRecord(int start){
+        this.STARTADDRESS = start+1;
+        int LENGTH = 5;
+    }
+    
+    @Override
+    public String toString(){
+        String modRecord = String.format("M%06X%02X",STARTADDRESS,LENGTH);
+        return modRecord;   
+    }
+}
 
 class INITIALIZERS {
     private static Hashtable<String, OPT> OPTAB;
