@@ -130,7 +130,10 @@ public class SicXeAssm {
                 
                 INSTRUCTION ins = new INSTRUCTION(SYMBOL,OPCODE,OPERAND,LOCCTR);
                 int length = LOCCTR;
-               
+                
+                if(COMMENT != ""){
+                    ins.setComment(COMMENT);
+                }
                 
                 addToList(ins);
                 
@@ -147,11 +150,6 @@ public class SicXeAssm {
                         
             }
             
-            
-            
-            //System.out.println(SYMBOL+" "+OPCODE+" "+OPERAND);
-                
-            
             if(fileScanner.hasNextLine()){
                 inputOfLine = fileScanner.nextLine();
             }
@@ -160,7 +158,6 @@ public class SicXeAssm {
         intWriter.close();
         
         PROGRAMLENGTH = LOCCTR - STARTADDRESS;
-        System.out.println("PROGRAM LENGTH: "+Integer.toHexString(PROGRAMLENGTH));
     }
     
     public static void passTwo(String filename){
@@ -170,7 +167,7 @@ public class SicXeAssm {
         MODRECORDS = new ArrayList();
         
         PrintWriter toOBJ = createPrintWriter(OBJECTCODE);
-        
+        PrintWriter toLST = createPrintWriter(LSTFILE);
         
         
         toOBJ.print(new HeaderRecord(PROGRAMNAME,STARTADDRESS,PROGRAMLENGTH));
@@ -194,17 +191,6 @@ public class SicXeAssm {
         
         while(LISTINSTRUCTIONS.hasNext()){
             INSTRUCTION ins = LISTINSTRUCTIONS.next();
-            
-            System.out.println(ins.OPCODE);
-            System.out.println(ins.OBJECTCODE);
-            System.out.println(ins.LENGTH);
-            
-            
-            /* if((lastRecord+lastLength) != ins.ADDRESS ){
-                startedText = false;
-                toOBJ.print(text+"\n");
-            }*/
-            
             
             if(startedText == false){
                 
@@ -242,7 +228,7 @@ public class SicXeAssm {
             
         }
         LISTMODS = MODRECORDS.listIterator();
-        System.out.println("Size: "+MODRECORDS.size());
+        
         int x = 0;
         
        while(LISTMODS.hasNext()){
@@ -251,11 +237,33 @@ public class SicXeAssm {
                toOBJ.print(mod+"\n");
                x++;
         } 
+       
+       
   
        EndRecord endRecord = new EndRecord(STARTADDRESS);
        toOBJ.print(endRecord);
        
-        toOBJ.close();
+       LISTINSTRUCTIONS = INSTRUCTIONS.listIterator();
+       
+       String lstFormat = String.format("%-15s%-15s%-16s%-60s\n","Line Number","Location","Object Code", "Source Code");
+       toLST.print(lstFormat);
+       
+       int lineNumber = 1;
+       int y = 0;
+       while(LISTINSTRUCTIONS.hasNext()){
+           LISTINSTRUCTIONS.next();
+           INSTRUCTION ins = INSTRUCTIONS.get(y);
+           String insFormat = String.format("%-15d%-15s%-16s%-15s%-15s%-15s%-30s",lineNumber,Integer.toString(ins.ADDRESS),ins.OBJECTCODE,ins.SYMBOL,ins.OPCODE,ins.OPERAND,ins.COMMENT);
+           lineNumber++;
+           y++;
+           toLST.print(insFormat+"\n");
+       }
+       
+       
+       
+       
+       toOBJ.close();
+       toLST.close();
     }
     
     
@@ -553,7 +561,7 @@ class INSTRUCTION {
         this.OPCODE = OPCODE;
         this.OPERAND = OPERAND;
         this.OPERANDS = setOperands(OPERAND);
-        this.COMMENT = COMMENT;
+        this.COMMENT = "";
         this.ERRORS = ERRORS;
         this.ADDRESS = address;
         this.OBJECTCODE = "";
@@ -624,6 +632,9 @@ class INSTRUCTION {
         }
     }
     
+    public void setComment(String x){
+        this.COMMENT = x;
+    }
     public void setLength(int x){
         LENGTH = x;
     }
