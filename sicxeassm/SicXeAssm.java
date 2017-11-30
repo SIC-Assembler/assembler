@@ -252,7 +252,9 @@ public class SicXeAssm {
                x++;
         } 
   
-        
+       EndRecord endRecord = new EndRecord(STARTADDRESS);
+       toOBJ.print(endRecord);
+       
         toOBJ.close();
     }
     
@@ -735,6 +737,21 @@ class ModRecord {
     public String toString(){
         String modRecord = String.format("M%06X%02X",STARTADDRESS,LENGTH);
         return modRecord;   
+    }
+}
+
+class EndRecord {
+    public int STARTADDRESS;
+    
+    EndRecord(int start){
+        this.STARTADDRESS = start;
+    }
+    
+    @Override
+    public String toString(){
+        String endRecord = String.format("E%06X",STARTADDRESS);
+        
+        return endRecord;
     }
 }
 
